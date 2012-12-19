@@ -15,6 +15,17 @@ There are 4 basic data types:
 
 All data is stored as strings; they must be encoded and parsed into the below formats.
 
+### Numbers
+
+Numbers are nothing more than numbers. No need to make it complicated.
+
+```
+1
+46
+3.5
+0.5553
+```
+
 ### Strings
 
 Strings are stored wrapped in double quotes. Any double quotes in itself should be
@@ -24,6 +35,23 @@ escaped with the backslash character. Backslashes can be escaped as well.
 "some simple string"
 "a string with \"quotes\" in it"
 "a string with a backslash (\\) in it"
+```
+
+### Arrays
+
+List values are comma-separated value identifiers.
+
+```
+4,5,6,7
+1,2,3,4,5,6
+```
+
+### Hashes
+
+Hash pairs are comma-separated, in the form of key:value_identifier.
+
+```perl
+myKey:34,otherKey:37,someOtherkey:983
 ```
 
 # Tables
@@ -62,7 +90,6 @@ the type of the value.
 ---------------------------------
 | value_id | value_type | value |
 ---------------------------------
-
 ```
 
 ### Data stored in this table
