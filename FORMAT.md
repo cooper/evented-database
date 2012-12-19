@@ -13,6 +13,19 @@ There are 4 basic data types:
 
 ## Storage syntax
 
+All data is stored as strings; they must be encoded and parsed into the below formats.
+
+### Strings
+
+Strings are stored wrapped in double quotes. Any double quotes in itself should be
+escaped with the backslash character. Backslashes can be escaped as well.
+
+```
+"some simple string"
+"a string with \"quotes\" in it"
+"a string with a backslash (\\) in it"
+```
+
 # Tables
 
 Evented::Database uses two databases: one for storing the location of values and one for
