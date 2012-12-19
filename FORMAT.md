@@ -6,10 +6,12 @@ This file describes the Evented::Database storage format.
 
 There are 4 basic data types:
 
-* __string:__ a string.
-* __number:__ a float or integer.
-* __array:__ an ordered list of other data types.
-* __hash:__ a key:value dictionary.
+* __string__: a string.
+* __number__:  a float or integer.
+* __array__: an ordered list of other data types.
+* __hash__: a key:value dictionary.
+
+## Storage syntax
 
 # Tables
 
@@ -42,11 +44,11 @@ The value table (VALUES) stores the actual values and their identifiers. It also
 the type of the value.
 
 ```
---------------------
-| VALUEID  | VALUE |
---------------------
-| value_id | value |
---------------------
+---------------------------------
+| VALUEID  | VALUETYPE  | VALUE |
+---------------------------------
+| value_id | value_type | value |
+---------------------------------
 
 ```
 
@@ -54,4 +56,5 @@ the type of the value.
 
 * __value_id__: the identifier of the value in the value table.
 * __value_type__: the string type of the value as seen in "Data types" above.
+* __value__: the value being stored in the syntax seen in "Storage syntax" above.
 
