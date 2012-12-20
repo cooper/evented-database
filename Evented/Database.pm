@@ -12,6 +12,7 @@ use Evented::Configuration;
 use Scalar::Util qw(blessed looks_like_number);
 
 our $VERSION = '0.1';
+sub error($);
 
 ###############################
 ### CONFIGURATION OVERRIDES ###
@@ -142,6 +143,12 @@ sub _db_convert_value {
         
         # iterate through each, insuring that it exists and is valid.
         foreach my $id (@ids) {
+        
+            # ensure that the value identifier has length.
+            if (!length $id) {
+                return error "syntax error in value ID '$id'";
+            }
+        
             my $val = $edb->_db_get_value($id);
             
             # if it wasn't set, there was an error.
@@ -181,7 +188,14 @@ sub _db_convert_value {
                 return error "syntax error in hash pair '$pair'";
             }
             
-            $final{$key} = $value;
+            my $val = $edb->_db_get_value($value_id);
+            
+            # if it wasn't set, there was an error.
+            if (!$val) {
+                return error "error in array '$value_string' value identifier '$value_id'";
+            }
+            
+            $final{$key} = $val;
         }
     
         # return the final hash as a reference.
