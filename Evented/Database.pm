@@ -14,6 +14,22 @@ use Scalar::Util qw(blessed looks_like_number);
 our $VERSION = '0.1';
 sub error($);
 
+# Caching
+# -----------------------------
+#
+# Evented::Database caches database values. Although some would argue that this is often
+# unnecessary and potentially wasteful of RAM, it is crucial to Evented::Database due to
+# fact that Evented::Database is required to parse each EO data string. Regex matches can
+# be expensive, and it appears that caching these values in memory is the best option for
+# optimal efficiency and minimal processing usage.
+#
+# Caches are stored in $edb->{cache}. They are stored as hash pairs in the form of
+# block_type/block_name:key. For example, a blocked name 'chocolate' of type 'cookies'
+# would store its 'chips' key in $ebd->{cache}{'cookies/chocolate'}{chips}. These values
+# are parsed Perl data, not EO data strings. Non-scalar data values (arrays and hashes)
+# are represented as scalar references.
+#
+
 ###############################
 ### CONFIGURATION OVERRIDES ###
 ###############################
@@ -75,7 +91,23 @@ sub hash_of_block {
 # supports unnamed blocks by get(block, key)
 # supports   named blocks by get([block type, block name], key)
 sub get {
-
+    my ($block_type, $block_name) = 'section';
+    my ($edb, $block, $key) = @_;
+    
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    # first, check for cached or database value.
+    # note: _db_get() always returns Perl values.
+    if (defined( my $value = $edb->_db_get([$block_type, $block_name], $key) )) {
+        return $value;
+    }
+    
+    # not in database. we will pass this on to Evented::Configuration.
+    return $edb->SUPER::get(@_);
+    
 }
 
 ##########################
@@ -83,10 +115,26 @@ sub get {
 ##########################
 
 # accepts only ([block type, block name], key)
+# internal use only: returns cache value if found, database value, undef.
+# all values are Perl values, not ED strings.
+# any values fetched from the database are cached here.
+sub _db_get {
+    my ($edb, $block_type, $block_name, $key) = (shift, @{shift()}, shift);
+    
+    # first, check for a cached value.
+    my $block_key = $block_type.q(:).$block_name;
+    if (defined $edb->{cache}{$block_key}{$key}) {
+        return $edb->{cache}{$block_key}{$key};
+    }
+    
+    # not cached. let's look in the database.
+}
+
+# accepts only ([block type, block name], key)
 # returns a value identifier of the given block and key.
 # returns undef if nothing is found.
 sub _db_get_location {
-    my ($edb, $block_type, $block_name, $key) = (@{shift()}, shift);
+    my ($edb, $block_type, $block_name, $key) = (shift, @{shift()}, shift);
     
     # prepare the statement.
     my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=? AND key=?');
@@ -110,6 +158,7 @@ sub _db_get_location {
 }
 
 # returns the ED string value and type associated with an identifier.
+# this does not take any caching into account.
 sub _db_get_value {
     my ($edb, $value_id) = @_;
     
