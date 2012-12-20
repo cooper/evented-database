@@ -9,7 +9,7 @@ use parent 'Evented::Configuration';
 
 use Evented::Configuration;
 
-use Scalar::Util 'blessed';
+use Scalar::Util qw(blessed looks_like_number);
 
 our $VERSION = '0.1';
 
@@ -112,6 +112,15 @@ sub _db_convert_value {
     }
     
     when ('number') {
+    
+        # first, ensure that the value looks like a number.
+        if (!looks_like_number($value_string)) {
+            return error "value '$value_string' in database is not a valid number";
+        }
+        
+        # it is, so return it.
+        return $value_string;
+        
     }
     
     when ('array') {
