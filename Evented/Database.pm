@@ -90,6 +90,7 @@ sub _db_get_value {
 # for non-scalar values, references are returned.
 sub _db_convert_value {
     my ($edb, $value_string, $value_type) = @_;
+    return unless defined $value_string;
     given ($value_type) {
     
     # strings are wrapped by double quotes, escaping them if necessary.
@@ -132,7 +133,7 @@ sub _db_convert_value {
         my @final;
         
         # if this is an empty array, we should not waste our time parsing it.
-        if (!$value_string) {
+        if (!length $value_string) {
             return \@final;
         }
         
@@ -156,7 +157,36 @@ sub _db_convert_value {
         
     }
     
+    # hashes are stored as comma-separated pairs of key:value_identifier.
     when ('hash') {
+    
+        my %final;
+        
+        # if this is an empty hash, we should not waste our time parsing it.
+        if (!length $value_string) {
+            return \%final;
+        }
+        
+        # it's not empty, so we will split the pairs by commas.
+        my @pairs = split /,/, $value_string;
+        
+        # iterate through each pair, insuring that it is valid and the value exists.
+        foreach my $pair (@pairs) {
+        
+            # extract key and value identifiers.
+            my ($key, $value_id) = split /:/, $pair;
+        
+            # if either is undefined or of zero length, we have a problem.
+            if (!defined $key || !length $key || !defined $value_id || !length $value_id) {
+                return error "syntax error in hash pair '$pair'";
+            }
+            
+            $final{$key} = $value;
+        }
+    
+        # return the final hash as a reference.
+        return \%final;
+        
     }
     
     }
