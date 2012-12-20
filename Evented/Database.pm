@@ -24,8 +24,8 @@ sub error($);
 # optimal efficiency and minimal processing usage.
 #
 # Caches are stored in $edb->{cache}. They are stored as hash pairs in the form of
-# block_type/block_name:key. For example, a blocked name 'chocolate' of type 'cookies'
-# would store its 'chips' key in $ebd->{cache}{'cookies/chocolate'}{chips}. These values
+# (block_type:block_name):key. For example, a blocked name 'chocolate' of type 'cookies'
+# would store its 'chips' key in $ebd->{cache}{'cookies:chocolate'}{chips}. These values
 # are parsed Perl data, not EO data strings. Non-scalar data values (arrays and hashes)
 # are represented as scalar references.
 #
@@ -128,6 +128,30 @@ sub _db_get {
     }
     
     # not cached. let's look in the database.
+
+    # find the location of the value.
+    my $value_id = $edb->_db_get_location([$block_type, $block_name], $key);
+    
+    # no value identifier found.
+    if (!defined $value_id) {
+        return error 'no value found';
+    }
+    
+    # we found something, so let's look up the ED value string.
+    my $ed_value = $edb->_db_get_value($value_id);
+    
+    # nothing found.
+    if (!defined $ed_value) {
+        return error 'strange database error: location found for a null value';
+    }
+    
+    # okay, let's convert the value to Perl and cache it for later.
+    my $value = $edb->{cache}{$block_key}{$key} = $db->_db_convert_value($ed_value);
+    
+    # return the pure Perl value.
+    # note: non-scalars are returned as references.
+    return $value;
+    
 }
 
 # accepts only ([block type, block name], key)
