@@ -96,24 +96,21 @@ sub create_tables_maybe {
     my $edb = shift;
     
     # create locations table.
-    $edb->{db}->do('
-        CREATE TABLE IF NOT EXISTS locations (
-            block VARCHAR(300),
-            blockname VARCHAR(300),
-            key VARCHAR(300),
-            valueid INT
-        )
-   ');
+    $edb->{db}->do('CREATE TABLE IF NOT EXISTS locations (
+        block       VARCHAR(300),
+        blockname   VARCHAR(300),
+        dkey        VARCHAR(300),
+        valueid     INT
+    )');
    
     # create values table.
-    $edb->{db}->do('
-        CREATE TABLE IF NOT EXISTS values (
-            valueid INT,
-            valuetype TINYTEXT,
-            value TEXT
-        )
-   ');
+    $edb->{db}->do('CREATE TABLE IF NOT EXISTS values (
+        valueid     INT,
+        valuetype   TINYTEXT,
+        value       TEXT
+    )');
         
+    return 1;
 }
 
 # get a configuration value.
@@ -190,7 +187,7 @@ sub _db_get_location {
     my ($edb, $block_type, $block_name, $key) = (shift, @{shift()}, shift);
     
     # prepare the statement.
-    my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=? AND key=?');
+    my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=? AND dkey=?');
     
     # execute it.
     my $rv = $sth->execute($block_type, $block_name, $key);

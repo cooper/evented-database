@@ -66,9 +66,9 @@ identifiers. Each value has a unique identifier.
 
 ```
 --------------------------------------------
-| block      | blockname  | key | valueid  |
+| block      | blockname  | dkey | valueid  |
 --------------------------------------------
-| block_type | block_name | key | value_id |
+| block_type | block_name | key  | value_id |
 --------------------------------------------
 ```
 
@@ -76,7 +76,7 @@ identifiers. Each value has a unique identifier.
 
 * __block_type__: the string type of the block for named blocks; "section" for unnamed.
 * __block_name__: the string name of the block.
-* __key__: the string key this value represents.
+* __dkey__: the string key this value represents.
 * __value_id__: the identifier of the value in the value table.
 
 ## The value table
