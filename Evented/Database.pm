@@ -106,12 +106,12 @@ sub create_tables_maybe {
         valueid     INT
     )') if !$edb->{db}->do('SELECT * FROM locations');
    
-    # create values table.
-    $edb->{db}->do('CREATE TABLE values (
+    # create dvalues table.
+    $edb->{db}->do('CREATE TABLE dvalues (
         valueid     INT,
         valuetype   TINYTEXT,
         value       TEXT
-    )') if !$edb->{db}->do('SELECT * FROM values');
+    )') if !$edb->{db}->do('SELECT * FROM dvalues');
         
     return 1;
 }
@@ -216,7 +216,7 @@ sub _db_get_value {
     my ($edb, $value_id) = @_;
     
     # prepare the statement.
-    my $sth = $edb->{db}->prepare('SELECT value, valuetype FROM values WHERE valueid=?');
+    my $sth = $edb->{db}->prepare('SELECT value, valuetype FROM dvalues WHERE valueid=?');
     
     # execute it.
     my $rv = $sth->execute($value_id);

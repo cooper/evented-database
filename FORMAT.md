@@ -81,7 +81,7 @@ identifiers. Each value has a unique identifier.
 
 ## The value table
 
-The value table (values) stores the actual values and their identifiers. It also stores
+The value table (dvalues) stores the actual values and their identifiers. It also stores
 the type of the value.
 
 ```
