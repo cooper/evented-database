@@ -96,7 +96,7 @@ sub _db_get_location {
     
     # an error occured.
     if (!$rv) {
-        return error 'fetch error: '.$sth->errstr;
+        return error 'location fetch error: '.$sth->errstr;
     }
     
     # find the value. there should really only be one.
@@ -112,6 +112,25 @@ sub _db_get_location {
 # returns the ED string value and type associated with an identifier.
 sub _db_get_value {
     my ($edb, $value_id) = @_;
+    
+    # prepare the statement.
+    my $sth = $edb->{db}->prepare('SELECT value, valuetype FROM values WHERE valueid=?');
+    
+    # execute it.
+    my $rv = $sth->execute($value_id);
+    
+    # an error occured.
+    if (!$rv) {
+        return error 'value fetch error: '.$sth->errstr;
+    }
+    
+    # find the value. there should really only be one.
+    while (my $aryref = $sth->fetchrow_arrayref) {
+        return my @a = ($aryref->[0], $arrayref->[1]);
+    }
+    
+    # nothing was found.
+    return;
 }
 
 # converts an ED string value and type to Perl datatypes.
