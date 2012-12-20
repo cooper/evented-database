@@ -61,12 +61,12 @@ the values themselves.
 
 ## The location table
 
-The location table (LOCATIONS) stores the locations of values by using numerical
+The location table (locations) stores the locations of values by using numerical
 identifiers. Each value has a unique identifier. 
 
 ```
 --------------------------------------------
-| BLOCK      | BLOCKNAME  | KEY | VALUEID  |
+| block      | blockname  | key | valueid  |
 --------------------------------------------
 | block_type | block_name | key | value_id |
 --------------------------------------------
@@ -81,12 +81,12 @@ identifiers. Each value has a unique identifier.
 
 ## The value table
 
-The value table (VALUES) stores the actual values and their identifiers. It also stores
+The value table (values) stores the actual values and their identifiers. It also stores
 the type of the value.
 
 ```
 ---------------------------------
-| VALUEID  | VALUETYPE  | VALUE |
+| valueid  | valuetype  | value |
 ---------------------------------
 | value_id | value_type | value |
 ---------------------------------

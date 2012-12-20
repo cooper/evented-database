@@ -82,6 +82,33 @@ sub get {
 ### DATABASE INTERNALS ###
 ##########################
 
+# accepts only ([block type, block name], key)
+# returns a value identifier of the given block and key.
+# returns undef if nothing is found.
+sub _db_get_location {
+    my ($edb, $block_type, $block_name, $key) = (@{shift()}, shift);
+    
+    # prepare the statement.
+    my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=? AND key=?');
+    
+    # execute it.
+    my $rv = $sth->execute($block_type, $block_name, $key);
+    
+    # an error occured.
+    if (!$rv) {
+        return error 'fetch error: '.$sth->errstr;
+    }
+    
+    # find the value. there should really only be one.
+    while (my $aryref = $sth->fetchrow_arrayref) {
+        return $aryref->[0];
+    }
+    
+    # nothing was found.
+    return;
+    
+}
+
 # returns the ED string value and type associated with an identifier.
 sub _db_get_value {
     my ($edb, $value_id) = @_;
