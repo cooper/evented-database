@@ -3,6 +3,7 @@ package Evented::Database;
 
 use warnings;
 use strict;
+use v5.10;
 use utf8;
 use parent 'Evented::Configuration';
 
@@ -12,9 +13,9 @@ use Scalar::Util 'blessed';
 
 our $VERSION = '0.1';
 
-# errors.
-our $ERROR;
-sub error ($) { $ERROR = shift and return }
+###############################
+### CONFIGURATION OVERRIDES ###
+###############################
 
 # create a new database instance.
 sub new {
@@ -75,6 +76,62 @@ sub hash_of_block {
 sub get {
 
 }
+
+##########################
+### DATABASE INTERNALS ###
+##########################
+
+# returns the ED string value and type associated with an identifier.
+sub _db_get_value {
+    my ($edb, $value_id) = @_;
+}
+
+# converts an ED string value and type to Perl datatypes.
+sub _db_convert_value {
+    my ($edb, $value_string, $value_type) = @_;
+    given ($value_type) {
+    
+    # strings are wrapped by double quotes, escaping them if necessary.
+    when ('string') {
+    
+        # if it is not in this format, it is a storage error.
+        my $res = $value_string !~ m/^"(.+)"$/;
+        if (!$res) {
+            return error "value '$value_string' in database is not a valid string";
+        }
+        
+        # remove the escapes.
+        # escapes are currently pointless, but they will be needed eventually when
+        # an improved parser is introduced to Evented::Database.
+        my $inner_string = $1;
+        $inner_string =~ s/(\\"|\\\\)//g;
+        
+        # simple as that; return the string.
+        return $inner_string;
+        
+    }
+    
+    when ('number') {
+    }
+    
+    when ('array') {
+    }
+    
+    when ('hash') {
+    }
+    
+    }
+    return;
+}
+
+#####################
+### MISCELLANEOUS ###
+#####################
+
+
+# errors.
+our $ERROR;
+sub error ($) { $ERROR = shift and return }
 
 # remove leading and trailing whitespace.
 sub trim {
