@@ -126,7 +126,7 @@ sub _db_get_value {
     
     # find the value. there should really only be one.
     while (my $aryref = $sth->fetchrow_arrayref) {
-        return my @a = ($aryref->[0], $arrayref->[1]);
+        return my @a = ($aryref->[0], $aryref->[1]);
     }
     
     # nothing was found.
