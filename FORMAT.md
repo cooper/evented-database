@@ -65,11 +65,11 @@ The location table (locations) stores the locations of values by using numerical
 identifiers. Each value has a unique identifier. 
 
 ```
---------------------------------------------
+---------------------------------------------
 | block      | blockname  | dkey | valueid  |
 --------------------------------------------
 | block_type | block_name | key  | value_id |
---------------------------------------------
+---------------------------------------------
 ```
 
 ### Data stored in this table

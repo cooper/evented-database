@@ -44,8 +44,10 @@ sub new {
         return error 'no DBI-compatible \'db\' option specified.';
     }
     
-    # TODO: ensure that the database object is DBI-compatible.
-    
+    # ensure that the database object is DBI-compatible.
+    if (!blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
+        return error 'specified \'db\' option is not a valid DBI database.';
+    }
     
     # create the object.
     my $edb = $class->SUPER::new(%opts);
