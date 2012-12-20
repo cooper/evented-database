@@ -87,6 +87,35 @@ sub hash_of_block {
 
 }
 
+##############################
+## DATABASE PUBLIC METHODS ###
+##############################
+
+# creates tables if they have not been created already.
+sub create_tables_maybe {
+    my $edb = shift;
+    
+    # create locations table.
+    $edb->{db}->do('
+        CREATE TABLE IF NOT EXISTS locations (
+            block VARCHAR(300),
+            blockname VARCHAR(300),
+            key VARCHAR(300),
+            valueid INT
+        )
+   ');
+   
+    # create values table.
+    $edb->{db}->do('
+        CREATE TABLE IF NOT EXISTS values (
+            valueid INT,
+            valuetype TINYTEXT,
+            value TEXT
+        )
+   ');
+        
+}
+
 # get a configuration value.
 # supports unnamed blocks by get(block, key)
 # supports   named blocks by get([block type, block name], key)
