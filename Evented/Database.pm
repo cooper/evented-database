@@ -146,7 +146,7 @@ sub _db_get {
     }
     
     # okay, let's convert the value to Perl and cache it for later.
-    my $value = $edb->{cache}{$block_key}{$key} = $db->_db_convert_value($ed_value);
+    my $value = $edb->{cache}{$block_key}{$key} = $edb->_db_convert_value($ed_value);
     
     # return the pure Perl value.
     # note: non-scalars are returned as references.
