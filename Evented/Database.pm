@@ -109,7 +109,7 @@ sub create_tables_maybe {
     # create dvalues table.
     $edb->{db}->do('CREATE TABLE dvalues (
         valueid     INT,
-        valuetype   TINYTEXT,
+        valuetype   VARCHAR(255),
         value       TEXT
     )') if !$edb->{db}->do('SELECT * FROM dvalues');
         
