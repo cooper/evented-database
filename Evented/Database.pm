@@ -87,6 +87,7 @@ sub _db_get_value {
 }
 
 # converts an ED string value and type to Perl datatypes.
+# for non-scalar values, references are returned.
 sub _db_convert_value {
     my ($edb, $value_string, $value_type) = @_;
     given ($value_type) {
@@ -111,6 +112,8 @@ sub _db_convert_value {
         
     }
     
+    # numbers are plain integers and floats.
+    # note: they may be stored in any valid Perl form: int, float, notated, etc.
     when ('number') {
     
         # first, ensure that the value looks like a number.
@@ -123,7 +126,34 @@ sub _db_convert_value {
         
     }
     
+    # arrays are comma-separated lists of value identifiers.
     when ('array') {
+    
+        my @final;
+        
+        # if this is an empty array, we should not waste our time parsing it.
+        if (!$value_string) {
+            return my @final;
+        }
+        
+        # it's not empty, so we will split the elements by commas.
+        my @ids = split /,/, $value_string;
+        
+        # iterate through each, insuring that it exists and is valid.
+        foreach my $id (@ids) {
+            my $val = $edb->_db_get_value($id);
+            
+            # if it wasn't set, there was an error.
+            if (!$val) {
+                return error "error in array '$value_string' value identifier '$id'";
+            }
+            
+            push @final, $val;
+        }
+        
+        # return the final array as a reference.
+        return \@final;
+        
     }
     
     when ('hash') {
