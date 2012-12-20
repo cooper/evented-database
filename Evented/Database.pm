@@ -56,6 +56,7 @@ sub new {
 }
 
 # sub parse_config()
+# perhaps we should clear the cache here for the desired rehasing effect.
 
 # returns true if the block is found.
 # supports unnamed blocks by get(block, key)
@@ -98,19 +99,19 @@ sub create_tables_maybe {
     my $edb = shift;
     
     # create locations table.
-    $edb->{db}->do('CREATE TABLE IF NOT EXISTS locations (
+    $edb->{db}->do('CREATE TABLE locations (
         block       VARCHAR(300),
         blockname   VARCHAR(300),
         dkey        VARCHAR(300),
         valueid     INT
-    )');
+    )') if !$edb->{db}->do('SELECT * FROM locations');
    
     # create values table.
-    $edb->{db}->do('CREATE TABLE IF NOT EXISTS values (
+    $edb->{db}->do('CREATE TABLE values (
         valueid     INT,
         valuetype   TINYTEXT,
         value       TEXT
-    )');
+    )') if !$edb->{db}->do('SELECT * FROM values');
         
     return 1;
 }
