@@ -133,7 +133,7 @@ sub _db_convert_value {
         
         # if this is an empty array, we should not waste our time parsing it.
         if (!$value_string) {
-            return my @final;
+            return \@final;
         }
         
         # it's not empty, so we will split the elements by commas.
