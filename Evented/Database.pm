@@ -91,7 +91,24 @@ sub has_block {
 # returns a list of all the names of a block type.
 # for example, names_of_block('listen') might return ('0.0.0.0', '127.0.0.1')
 sub names_of_block {
-
+    my ($edb, $block_type) = @_;
+    my @names;
+    
+    # fetch all 'blockname' values.
+    my $sth = $edb->{db}->prepare('SELECT blockname FROM locations WHERE block=?');
+    
+    # query it.
+    my $rv = $sth->execute($block_type);
+    
+    # add each name we haven't added already.
+    while (my $aryref = $sth->fetchrow_arrayref) {
+        my $name = $aryref->[0];
+        push @names, $name if !($name ~~ @names);
+    }
+    
+    # return the list of names as a pure array.
+    return @names;
+    
 }
 
 # returns a list of all the keys in a block.
