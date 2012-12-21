@@ -62,7 +62,29 @@ sub new {
 # returns true if the block is found.
 # supports unnamed blocks by get(block, key)
 # supports   named blocks by get([block type, block name], key)
+# checks cache, 
 sub has_block {
+    my ($edb, $block) = @_;
+    my ($block_type, $block_name) = ('section', $block);
+    
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    # first, check cache.
+    if ($edb->{cache}{$block_type.q(:).$block_name}) {
+        return 1;
+    }
+
+    # check database for block.
+    return 1 if ($edb->{db}->do(
+        'SELECT block FROM locations WHERE block=? AND blockname=?',
+        undef, $block_type, $block_name
+    ) + 0);
+
+    # pass it on to Evented::Configuration.    
+    return $edb->SUPER::has_block(@_);
 
 }
 
@@ -128,14 +150,14 @@ sub create_tables_maybe {
         blockname   VARCHAR(300),
         dkey        VARCHAR(300),
         valueid     INT
-    )') if !$edb->{db}->do('SELECT block FROM locations LIMIT 1');
+    )') if !($edb->{db}->do('SELECT block FROM locations LIMIT 1') + 0);
    
     # create dvalues table.
     $edb->{db}->do('CREATE TABLE dvalues (
         valueid     INT,
         valuetype   VARCHAR(255),
         value       TEXT
-    )') if !$edb->{db}->do('SELECT valueid FROM dvalues LIMIT 1');
+    )') if !($edb->{db}->do('SELECT valueid FROM dvalues LIMIT 1') + 0);
         
     return 1;
 }
