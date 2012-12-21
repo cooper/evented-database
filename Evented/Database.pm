@@ -12,6 +12,7 @@ use Evented::Configuration;
 use Scalar::Util qw(blessed looks_like_number);
 
 our $VERSION = '0.1';
+our $ERROR;
 sub error($);
 
 # Caching
@@ -90,6 +91,29 @@ sub hash_of_block {
 
 }
 
+# get a configuration value.
+# supports unnamed blocks by get(block, key)
+# supports   named blocks by get([block type, block name], key)
+sub get {
+    my ($edb, $block, $key) = @_;
+    my ($block_type, $block_name) = ('section', $block);
+    
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    # first, check for cached or database value.
+    # note: _db_get() always returns Perl values.
+    if (defined( my $value = $edb->_db_get([$block_type, $block_name], $key) )) {
+        return $value;
+    }
+    
+    # not in database. we will pass this on to Evented::Configuration.
+    return $edb->SUPER::get(@_);
+    
+}
+
 ##############################
 ## DATABASE PUBLIC METHODS ###
 ##############################
@@ -114,29 +138,6 @@ sub create_tables_maybe {
     )') if !$edb->{db}->do('SELECT * FROM dvalues');
         
     return 1;
-}
-
-# get a configuration value.
-# supports unnamed blocks by get(block, key)
-# supports   named blocks by get([block type, block name], key)
-sub get {
-    my ($block_type, $block_name) = 'section';
-    my ($edb, $block, $key) = @_;
-    
-    # if $block is an array reference, it's (type, name).
-    if (defined ref $block && ref $block eq 'ARRAY') {
-        ($block_type, $block_name) = @$block;
-    }
-    
-    # first, check for cached or database value.
-    # note: _db_get() always returns Perl values.
-    if (defined( my $value = $edb->_db_get([$block_type, $block_name], $key) )) {
-        return $value;
-    }
-    
-    # not in database. we will pass this on to Evented::Configuration.
-    return $edb->SUPER::get(@_);
-    
 }
 
 ##########################
@@ -366,7 +367,6 @@ sub _db_convert_value {
 
 
 # errors.
-our $ERROR;
 sub error ($) { $ERROR = shift and return }
 
 # remove leading and trailing whitespace.
