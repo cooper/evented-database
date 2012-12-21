@@ -142,41 +142,6 @@ sub keys_of_block {
     
 }
 
-# returns a list of all the values in a block.
-# accepts block type or [block type, block name] as well.
-sub values_of_block {
-    my ($edb, $block) = @_;
-    my ($block_type, $block_name) = ('section', $block);
-    
-    # if $block is an array reference, it's (type, name).
-    if (defined ref $block && ref $block eq 'ARRAY') {
-        ($block_type, $block_name) = @$block;
-    }
-    
-    # values are stored as value_id:value.
-    my %values;
-    
-    # iterate through each key of the block.
-    foreach my $key ($edb->keys_of_block([$block_type, $block_name])) {
-
-        # find the value.
-        my $value = $edb->_db_get([$block_type, $block_name], $key);
-        
-        # if there is no value, we have an error.
-        if (!defined $value) {
-            return error $edb "could not get value for '$key' key: $$edb{EDB_ERROR}";
-        }
-        
-        # set it in our hash if we haven't already.
-        $values{$key} = $value if !defined $values{$key};
-        
-    }
-
-    # return as a pure hash.
-    return values %values;
-    
-}
-
 # returns the key:value hash of a block.
 # accepts block type or [block type, block name] as well.
 sub hash_of_block {
@@ -188,10 +153,46 @@ sub hash_of_block {
         ($block_type, $block_name) = @$block;
     }
     
-    # values are stored as value_id:value.
+    # values are stored as key:value.
     my %values;
     
+    # iterate through each key of the block.
+    foreach my $key ($edb->keys_of_block([$block_type, $block_name])) {
 
+        # find the value.
+        my $value = $edb->_db_get([$block_type, $block_name], $key);
+        
+        # if there is no value, we have an error.
+        if (!defined $value) {
+            return $edb->error("could not get value for '$key' key: $$edb{EDB_ERROR}");
+        }
+        
+        # set it in our hash if we haven't already.
+        $values{$key} = $value if !defined $values{$key};
+        
+    }
+    
+    return %values;
+    
+}
+
+# returns a list of all the values in a block.
+# accepts block type or [block type, block name] as well.
+sub values_of_block {
+    my ($edb, $block) = @_;
+    my ($block_type, $block_name) = ('section', $block);
+    
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    # values are stored as key:value.
+    my %values = $edb->hash_of_block([$block_type, $block_name]);
+
+    # return as a pure hash.
+    return values %values;
+    
 }
 
 # get a configuration value.
@@ -267,7 +268,7 @@ sub _db_get {
 
     # no value identifier found.
     if (!defined $value_id) {
-        return error $edb 'no value found';
+        return $edb->error('no value found');
     }
     
     # we found something, so let's look up the ED value string.
@@ -275,7 +276,7 @@ sub _db_get {
 
     # nothing found.
     if (!defined $ed_value) {
-        return error $edb 'strange database error: location found for a null value';
+        return $edb->error('strange database error: location found for a null value');
     }
     
     # okay, let's convert the value to Perl and cache it for later.
@@ -283,7 +284,7 @@ sub _db_get {
     
     # if $value is undefined, there was a parse.
     if (!defined $value) {
-        return error $edb "parse error: $$edb{EDB_ERROR}";
+        return $edb->error("parse error: $$edb{EDB_ERROR}");
     }
     
     # return the pure Perl value.
@@ -306,7 +307,7 @@ sub _db_get_location {
     
     # an error occured.
     if (!$rv) {
-        return error $edb 'location fetch error: '.$sth->errstr;
+        return $edb->error('location fetch error: '.$sth->errstr);
     }
     
     # find the value. there should really only be one.
@@ -332,7 +333,7 @@ sub _db_get_value {
     
     # an error occured.
     if (!$rv) {
-        return error $edb 'value fetch error: '.$sth->errstr;
+        return $edb->error('value fetch error: '.$sth->errstr);
     }
     
     # find the value. there should really only be one.
@@ -357,7 +358,7 @@ sub _db_convert_value {
         # if it is not in this format, it is a storage error.
         my $res = $value_string =~ m/^"(.+)"$/;
         if (!$res) {
-            return error $edb "value '$value_string' in database is not a valid string";
+            return $edb->error("value '$value_string' in database is not a valid string");
         }
         
         # remove the escapes.
@@ -377,7 +378,7 @@ sub _db_convert_value {
     
         # first, ensure that the value looks like a number.
         if (!looks_like_number($value_string)) {
-            return error $edb "value '$value_string' in database is not a valid number";
+            return $edb->error("value '$value_string' in database is not a valid number");
         }
         
         # it is, so return it.
@@ -403,14 +404,14 @@ sub _db_convert_value {
         
             # ensure that the value identifier has length.
             if (!length $id) {
-                return error $edb "syntax error in value ID '$id'";
+                return $edb->error("syntax error in value ID '$id'");
             }
         
             my $val = $edb->_db_get_value($id);
             
             # if it wasn't set, there was an error.
             if (!$val) {
-                return error $edb "error in array '$value_string' value identifier '$id'";
+                return $edb->error("error in array '$value_string' value identifier '$id'");
             }
             
             push @final, $val;
@@ -442,14 +443,14 @@ sub _db_convert_value {
         
             # if either is undefined or of zero length, we have a problem.
             if (!defined $key || !length $key || !defined $value_id || !length $value_id) {
-                return error $edb "syntax error in hash pair '$pair'";
+                return $edb->error("syntax error in hash pair '$pair'");
             }
             
             my $val = $edb->_db_get_value($value_id);
             
             # if it wasn't set, there was an error.
             if (!$val) {
-                return error $edb "error in array '$value_string' value identifier '$value_id'";
+                return $edb->error("error in array '$value_string' value identifier '$value_id'");
             }
             
             $final{$key} = $val;
