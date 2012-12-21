@@ -12,8 +12,6 @@ use Evented::Configuration;
 use Scalar::Util qw(blessed looks_like_number);
 
 our $VERSION = '0.1';
-our $ERROR;
-sub error($);
 
 # Caching
 # -----------------------------
@@ -42,12 +40,14 @@ sub new {
 
     # a 'db' option must be present.
     if (!$opts{db}) {
-        return error 'no DBI-compatible \'db\' option specified.';
+        $@ = 'no DBI-compatible \'db\' option specified.';
+        return;
     }
     
     # ensure that the database object is DBI-compatible.
     if (!blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
-        return error 'specified \'db\' option is not a valid DBI database.';
+        $@ = 'specified \'db\' option is not a valid DBI database.';
+        return;
     }
     
     # create the object.
@@ -164,7 +164,7 @@ sub _db_get {
 
     # no value identifier found.
     if (!defined $value_id) {
-        return error 'no value found';
+        return error $edb 'no value found';
     }
     
     # we found something, so let's look up the ED value string.
@@ -172,7 +172,7 @@ sub _db_get {
 
     # nothing found.
     if (!defined $ed_value) {
-        return error 'strange database error: location found for a null value';
+        return error $edb 'strange database error: location found for a null value';
     }
     
     # okay, let's convert the value to Perl and cache it for later.
@@ -180,7 +180,7 @@ sub _db_get {
     
     # if $value is undefined, there was a parse.
     if (!defined $value) {
-        return error "parse error: $ERROR";
+        return error $edb "parse error: $$edb{EDB_ERROR}";
     }
     
     # return the pure Perl value.
@@ -203,7 +203,7 @@ sub _db_get_location {
     
     # an error occured.
     if (!$rv) {
-        return error 'location fetch error: '.$sth->errstr;
+        return error $edb 'location fetch error: '.$sth->errstr;
     }
     
     # find the value. there should really only be one.
@@ -229,7 +229,7 @@ sub _db_get_value {
     
     # an error occured.
     if (!$rv) {
-        return error 'value fetch error: '.$sth->errstr;
+        return error $edb 'value fetch error: '.$sth->errstr;
     }
     
     # find the value. there should really only be one.
@@ -254,7 +254,7 @@ sub _db_convert_value {
         # if it is not in this format, it is a storage error.
         my $res = $value_string =~ m/^"(.+)"$/;
         if (!$res) {
-            return error "value '$value_string' in database is not a valid string";
+            return error $edb "value '$value_string' in database is not a valid string";
         }
         
         # remove the escapes.
@@ -274,7 +274,7 @@ sub _db_convert_value {
     
         # first, ensure that the value looks like a number.
         if (!looks_like_number($value_string)) {
-            return error "value '$value_string' in database is not a valid number";
+            return error $edb "value '$value_string' in database is not a valid number";
         }
         
         # it is, so return it.
@@ -300,14 +300,14 @@ sub _db_convert_value {
         
             # ensure that the value identifier has length.
             if (!length $id) {
-                return error "syntax error in value ID '$id'";
+                return error $edb "syntax error in value ID '$id'";
             }
         
             my $val = $edb->_db_get_value($id);
             
             # if it wasn't set, there was an error.
             if (!$val) {
-                return error "error in array '$value_string' value identifier '$id'";
+                return error $edb "error in array '$value_string' value identifier '$id'";
             }
             
             push @final, $val;
@@ -339,14 +339,14 @@ sub _db_convert_value {
         
             # if either is undefined or of zero length, we have a problem.
             if (!defined $key || !length $key || !defined $value_id || !length $value_id) {
-                return error "syntax error in hash pair '$pair'";
+                return error $edb "syntax error in hash pair '$pair'";
             }
             
             my $val = $edb->_db_get_value($value_id);
             
             # if it wasn't set, there was an error.
             if (!$val) {
-                return error "error in array '$value_string' value identifier '$value_id'";
+                return error $edb "error in array '$value_string' value identifier '$value_id'";
             }
             
             $final{$key} = $val;
@@ -367,7 +367,19 @@ sub _db_convert_value {
 
 
 # errors.
-sub error ($) { $ERROR = shift and return }
+sub error {
+    my ($edb, $reason) = @_;
+    
+    # if $reason is set, we're returning undefined and setting the error.
+    if (defined $reason) {
+        $edb->{EDB_ERROR} = $reason;
+        return;
+    }
+
+    # otherwise, we're returning the last error set.
+    return $edb->{EDB_ERROR};
+    
+}
 
 # remove leading and trailing whitespace.
 sub trim {
