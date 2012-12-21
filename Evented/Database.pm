@@ -128,14 +128,14 @@ sub create_tables_maybe {
         blockname   VARCHAR(300),
         dkey        VARCHAR(300),
         valueid     INT
-    )') if !$edb->{db}->do('SELECT * FROM locations');
+    )') if !$edb->{db}->do('SELECT block FROM locations LIMIT 1');
    
     # create dvalues table.
     $edb->{db}->do('CREATE TABLE dvalues (
         valueid     INT,
         valuetype   VARCHAR(255),
         value       TEXT
-    )') if !$edb->{db}->do('SELECT * FROM dvalues');
+    )') if !$edb->{db}->do('SELECT valueid FROM dvalues LIMIT 1');
         
     return 1;
 }
