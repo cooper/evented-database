@@ -145,7 +145,41 @@ sub keys_of_block {
 # returns a list of all the values in a block.
 # accepts block type or [block type, block name] as well.
 sub values_of_block {
+    my ($edb, $block) = @_;
+    my ($block_type, $block_name) = ('section', $block);
+    
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    # values are stored as value_id:value.
+    my %values;
+    
+    # fetch all 'valueid' values for this block.
+    my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=?');
+    
+    # query it.
+    my $rv = $sth->execute($block_type, $block_name);
+    
+    # add each value we haven't added already.
+    while (my $aryref = $sth->fetchrow_arrayref) {
+        my $value_id = $aryref->[0];
+        
+        # find the value from the values table.
+        my $value = $edb->_db_get_value($value_id);
+        
+        # if it wasn't set, there was an error.
+        if (!$value) {
+            return error $edb "error in values_of_block value identifier '$value_id'";
+        }   
+ 
+        $values{$value_id} = $value if !defined $values{$value_id};
 
+    }
+    
+    # return the list of names as a pure array.
+    return values %values;
 }
 
 # returns the key:value hash of a block.
