@@ -149,7 +149,7 @@ sub get {
 # any values fetched from the database are cached here.
 sub _db_get {
     my ($edb, $block_type, $block_name, $key) = (shift, @{shift()}, shift);
-    
+
     # first, check for a cached value.
     my $block_key = $block_type.q(:).$block_name;
     if (defined $edb->{cache}{$block_key}{$key}) {
@@ -160,22 +160,27 @@ sub _db_get {
 
     # find the location of the value.
     my $value_id = $edb->_db_get_location([$block_type, $block_name], $key);
-    
+
     # no value identifier found.
     if (!defined $value_id) {
         return error 'no value found';
     }
     
     # we found something, so let's look up the ED value string.
-    my $ed_value = $edb->_db_get_value($value_id);
-    
+    my ($ed_value, $ed_type) = $edb->_db_get_value($value_id);
+
     # nothing found.
     if (!defined $ed_value) {
         return error 'strange database error: location found for a null value';
     }
     
     # okay, let's convert the value to Perl and cache it for later.
-    my $value = $edb->{cache}{$block_key}{$key} = $edb->_db_convert_value($ed_value);
+    my $value = $edb->{cache}{$block_key}{$key} = $edb->_db_convert_value($ed_value, $ed_type);
+    
+    # if $value is undefined, there was a parse.
+    if (!defined $value) {
+        return error "parse error: $ERROR";
+    }
     
     # return the pure Perl value.
     # note: non-scalars are returned as references.
@@ -246,7 +251,7 @@ sub _db_convert_value {
     when ('string') {
     
         # if it is not in this format, it is a storage error.
-        my $res = $value_string !~ m/^"(.+)"$/;
+        my $res = $value_string =~ m/^"(.+)"$/;
         if (!$res) {
             return error "value '$value_string' in database is not a valid string";
         }
