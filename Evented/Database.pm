@@ -115,7 +115,31 @@ sub names_of_block {
 # for example, keys_of_block('modules') would return an array of every module.
 # accepts block type or [block type, block name] as well.
 sub keys_of_block {
-
+    my ($edb, $block) = @_;
+    my ($block_type, $block_name) = ('section', $block);
+    
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    my @keys;
+    
+    # fetch all 'dkey' values for this block.
+    my $sth = $edb->{db}->prepare('SELECT dkey FROM locations WHERE block=? AND blockname=?');
+    
+    # query it.
+    my $rv = $sth->execute($block_type, $block_name);
+    
+    # add each key we haven't added already.
+    while (my $aryref = $sth->fetchrow_arrayref) {
+        my $key = $aryref->[0];
+        push @keys, $key if !($key ~~ @keys);
+    }
+    
+    # return the list of names as a pure array.
+    return @keys;
+    
 }
 
 # returns a list of all the values in a block.
