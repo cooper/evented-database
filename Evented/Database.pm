@@ -156,30 +156,25 @@ sub values_of_block {
     # values are stored as value_id:value.
     my %values;
     
-    # fetch all 'valueid' values for this block.
-    my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=?');
-    
-    # query it.
-    my $rv = $sth->execute($block_type, $block_name);
-    
-    # add each value we haven't added already.
-    while (my $aryref = $sth->fetchrow_arrayref) {
-        my $value_id = $aryref->[0];
-        
-        # find the value from the values table.
-        my $value = $edb->_db_get_value($value_id);
-        
-        # if it wasn't set, there was an error.
-        if (!$value) {
-            return error $edb "error in values_of_block() value identifier '$value_id'";
-        }   
- 
-        $values{$value_id} = $value if !defined $values{$value_id};
+    # iterate through each key of the block.
+    foreach my $key ($edb->keys_of_block([$block_type, $block_name])) {
 
+        # find the value.
+        my $value = $edb->_db_get([$block_type, $block_name], $key);
+        
+        # if there is no value, we have an error.
+        if (!defined $value) {
+            return error $edb "could not get value for '$key' key: $$edb{EDB_ERROR}";
+        }
+        
+        # set it in our hash if we haven't already.
+        $values{$key} = $value if !defined $values{$key};
+        
     }
-    
-    # return the list of names as a pure array.
+
+    # return as a pure hash.
     return values %values;
+    
 }
 
 # returns the key:value hash of a block.
@@ -196,30 +191,7 @@ sub hash_of_block {
     # values are stored as value_id:value.
     my %values;
     
-    # fetch all 'dkey' and 'valueid' values for this block.
-    my $sth = $edb->{db}->prepare('SELECT dkey, valueid FROM locations WHERE block=? AND blockname=?');
-    
-    # query it.
-    my $rv = $sth->execute($block_type, $block_name);
-    
-    # add each value we haven't added already.
-    while (my $aryref = $sth->fetchrow_arrayref) {
-        my ($key, $value_id) = @$aryref;
-        
-        # find the value from the values table.
-        my $value = $edb->_db_get_value($value_id);
-        
-        # if it wasn't set, there was an error.
-        if (!$value) {
-            return error $edb "error in hash_of_block() value identifier '$value_id'";
-        }   
- 
-        $values{$key} = $value if !defined $values{$key};
 
-    }
-    
-    # return the list of names as a pure array.
-    return %values;
 }
 
 # get a configuration value.
