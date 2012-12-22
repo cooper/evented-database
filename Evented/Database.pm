@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 
 # Caching
 # -----------------------------
@@ -37,15 +37,8 @@ our $VERSION = '0.1';
 sub new {
     my ($class, %opts) = @_;
     
-
-    # a 'db' option must be present.
-    if (!$opts{db}) {
-        $@ = 'no DBI-compatible \'db\' option specified.';
-        return;
-    }
-    
     # ensure that the database object is DBI-compatible.
-    if (!blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
+    if (defined $opts{db} && !blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
         $@ = 'specified \'db\' option is not a valid DBI database.';
         return;
     }
@@ -66,6 +59,9 @@ sub new {
 sub has_block {
     my ($edb, $block) = @_;
     my ($block_type, $block_name) = ('section', $block);
+    
+    # no database.
+    return $edb->SUPER::has_block(@_) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
@@ -94,6 +90,9 @@ sub names_of_block {
     my ($edb, $block_type) = @_;
     my @names;
     
+    # no database.
+    return $edb->SUPER::names_of_block(@_) if !$edb->{db};
+    
     # fetch all 'blockname' values.
     my $sth = $edb->{db}->prepare('SELECT blockname FROM locations WHERE block=?');
     
@@ -107,7 +106,10 @@ sub names_of_block {
     }
     
     # return the list of names as a pure array.
-    return @names;
+    return @names if scalar @names;
+    
+    # pass it on to Evented::Configuration.
+    return $edb->SUPER::names_of_block(@_);
     
 }
 
@@ -117,6 +119,9 @@ sub names_of_block {
 sub keys_of_block {
     my ($edb, $block) = @_;
     my ($block_type, $block_name) = ('section', $block);
+    
+    # no database.
+    return $edb->SUPER::keys_of_block(@_) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
@@ -138,7 +143,10 @@ sub keys_of_block {
     }
     
     # return the list of names as a pure array.
-    return @keys;
+    return @keys if scalar @keys;
+    
+    # pass it on to Evented::Configuration.
+    return $edb->SUPER::keys_of_block(@_);
     
 }
 
@@ -147,6 +155,9 @@ sub keys_of_block {
 sub hash_of_block {
     my ($edb, $block) = @_;
     my ($block_type, $block_name) = ('section', $block);
+    
+    # no database.
+    return $edb->SUPER::hash_of_block(@_) if $edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
@@ -172,7 +183,11 @@ sub hash_of_block {
         
     }
     
-    return %values;
+    # return as a pure hash.
+    return %values if scalar %values;
+    
+    # pass it on to Evented::Configuration.
+    return $edb->SUPER::hash_of_block(@_);
     
 }
 
@@ -181,6 +196,9 @@ sub hash_of_block {
 sub values_of_block {
     my ($edb, $block) = @_;
     my ($block_type, $block_name) = ('section', $block);
+    
+    # no database.
+    return $edb->SUPER::values_of_block(@_) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
@@ -191,8 +209,10 @@ sub values_of_block {
     my %values = $edb->hash_of_block([$block_type, $block_name]);
 
     # return as a pure hash.
-    return values %values;
+    return values %values if scalar %values;
     
+    # pass it on to Evented::Configuration.
+    return $edb->SUPER::values_of_block(@_);
 }
 
 # get a configuration value.
@@ -201,6 +221,9 @@ sub values_of_block {
 sub get {
     my ($edb, $block, $key) = @_;
     my ($block_type, $block_name) = ('section', $block);
+    
+    # no database.
+    $edb->SUPER::get(@_) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
@@ -225,6 +248,9 @@ sub get {
 # creates tables if they have not been created already.
 sub create_tables_maybe {
     my $edb = shift;
+    
+    # no database.
+    return unless $edb->{db};
     
     # create locations table.
     $edb->{db}->do('CREATE TABLE locations (
@@ -254,6 +280,9 @@ sub create_tables_maybe {
 # any values fetched from the database are cached here.
 sub _db_get {
     my ($edb, $block_type, $block_name, $key) = (shift, @{shift()}, shift);
+
+    # no database.
+    return unless $edb->{db};
 
     # first, check for a cached value.
     my $block_key = $block_type.q(:).$block_name;
@@ -298,6 +327,9 @@ sub _db_get {
 # returns undef if nothing is found.
 sub _db_get_location {
     my ($edb, $block_type, $block_name, $key) = (shift, @{shift()}, shift);
+
+    # no database.
+    return unless $edb->{db};
     
     # prepare the statement.
     my $sth = $edb->{db}->prepare('SELECT valueid FROM locations WHERE block=? AND blockname=? AND dkey=?');
@@ -324,6 +356,9 @@ sub _db_get_location {
 # this does not take any caching into account.
 sub _db_get_value {
     my ($edb, $value_id) = @_;
+    
+    # no database.
+    return unless $edb->{db};
     
     # prepare the statement.
     my $sth = $edb->{db}->prepare('SELECT value, valuetype FROM dvalues WHERE valueid=?');
