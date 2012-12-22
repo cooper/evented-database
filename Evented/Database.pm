@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.4';
+our $VERSION = '0.5';
 
 # Caching
 # -----------------------------
@@ -57,10 +57,11 @@ sub new {
 # supports   named blocks by get([block type, block name], key)
 # checks cache, 
 sub has_block {
-    my ($edb, $block) = @_;
+    my ($edb, $block, $db_only) = @_;
     my ($block_type, $block_name) = ('section', $block);
     
     # no database.
+    return if !$edb->{db} && $db_only;
     return $edb->SUPER::has_block($block) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
@@ -80,17 +81,19 @@ sub has_block {
     ) + 0);
 
     # pass it on to Evented::Configuration.    
-    return $edb->SUPER::has_block($block);
-
+    return $edb->SUPER::has_block($block) unless $db_only;
+    
+    return;
 }
 
 # returns a list of all the names of a block type.
 # for example, names_of_block('listen') might return ('0.0.0.0', '127.0.0.1')
 sub names_of_block {
-    my ($edb, $block_type) = @_;
+    my ($edb, $block_type, $db_only) = @_;
     my @names;
     
     # no database.
+    return @names if !$edb->{db} && $db_only;
     return $edb->SUPER::names_of_block($block_type) if !$edb->{db};
     
     # fetch all 'blockname' values.
@@ -109,26 +112,28 @@ sub names_of_block {
     return @names if scalar @names;
     
     # pass it on to Evented::Configuration.
-    return $edb->SUPER::names_of_block($block_type);
+    return $edb->SUPER::names_of_block($block_type) unless $db_only;
     
+    return @names;
 }
 
 # returns a list of all the keys in a block.
 # for example, keys_of_block('modules') would return an array of every module.
 # accepts block type or [block type, block name] as well.
 sub keys_of_block {
-    my ($edb, $block) = @_;
+    my ($edb, $block, $db_only) = @_;
     my ($block_type, $block_name) = ('section', $block);
     
+    my @keys;
+    
     # no database.
+    return @keys if !$edb->{db} && $db_only;
     return $edb->SUPER::keys_of_block($block) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
         ($block_type, $block_name) = @$block;
     }
-    
-    my @keys;
     
     # fetch all 'dkey' values for this block.
     my $sth = $edb->{db}->prepare('SELECT dkey FROM locations WHERE block=? AND blockname=?');
@@ -146,29 +151,31 @@ sub keys_of_block {
     return @keys if scalar @keys;
     
     # pass it on to Evented::Configuration.
-    return $edb->SUPER::keys_of_block($block);
+    return $edb->SUPER::keys_of_block($block) unless $db_only;
     
+    return @keys;
 }
 
 # returns the key:value hash of a block.
 # accepts block type or [block type, block name] as well.
 sub hash_of_block {
-    my ($edb, $block) = @_;
+    my ($edb, $block, $db_only) = @_;
     my ($block_type, $block_name) = ('section', $block);
     
+    # values are stored as key:value.
+    my %values;
+    
     # no database.
-    return $edb->SUPER::hash_of_block($block) if $edb->{db};
+    return %values if !$edb->{db} && $db_only;
+    return $edb->SUPER::hash_of_block($block) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
         ($block_type, $block_name) = @$block;
     }
     
-    # values are stored as key:value.
-    my %values;
-    
     # iterate through each key of the block.
-    foreach my $key ($edb->keys_of_block([$block_type, $block_name])) {
+    foreach my $key ($edb->keys_of_block([$block_type, $block_name], 1)) {
 
         # find the value.
         my $value = $edb->_db_get([$block_type, $block_name], $key);
@@ -187,17 +194,19 @@ sub hash_of_block {
     return %values if scalar %values;
     
     # pass it on to Evented::Configuration.
-    return $edb->SUPER::hash_of_block($block);
+    return $edb->SUPER::hash_of_block($block) unless $db_only;
     
+    return %values;
 }
 
 # returns a list of all the values in a block.
 # accepts block type or [block type, block name] as well.
 sub values_of_block {
-    my ($edb, $block) = @_;
+    my ($edb, $block, $db_only) = @_;
     my ($block_type, $block_name) = ('section', $block);
     
     # no database.
+    return my @a if !$edb->{db} && $db_only;
     return $edb->SUPER::values_of_block($block) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
@@ -206,23 +215,26 @@ sub values_of_block {
     }
     
     # values are stored as key:value.
-    my %values = $edb->hash_of_block([$block_type, $block_name]);
+    my %values = $edb->hash_of_block([$block_type, $block_name], 1);
 
     # return as a pure hash.
     return values %values if scalar %values;
     
     # pass it on to Evented::Configuration.
-    return $edb->SUPER::values_of_block($block);
+    return $edb->SUPER::values_of_block($block) unless $db_only;
+    
+    return my @a;
 }
 
 # get a configuration value.
 # supports unnamed blocks by get(block, key)
 # supports   named blocks by get([block type, block name], key)
 sub get {
-    my ($edb, $block, $key) = @_;
+    my ($edb, $block, $key, $db_only) = @_;
     my ($block_type, $block_name) = ('section', $block);
     
     # no database.
+    return if !$edb->{db} && $db_only;
     $edb->SUPER::get($block, $key) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
@@ -237,8 +249,9 @@ sub get {
     }
     
     # not in database. we will pass this on to Evented::Configuration.
-    return $edb->SUPER::get($block, $key);
+    return $edb->SUPER::get($block, $key) unless $db_only;
     
+    return;
 }
 
 ##############################
