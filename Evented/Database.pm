@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.2';
+our $VERSION = '0.3';
 
 # Caching
 # -----------------------------
@@ -38,7 +38,7 @@ sub new {
     my ($class, %opts) = @_;
     
     # ensure that the database object is DBI-compatible.
-    if (defined $opts{db} && !blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
+    if (defined $opts{db} and !blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
         $@ = 'specified \'db\' option is not a valid DBI database.';
         return;
     }
