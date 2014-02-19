@@ -206,7 +206,8 @@ sub values_of_block {
     my ($block_type, $block_name) = ('section', $block);
     
     # no database.
-    return my @a if !$edb->{db} && $db_only;
+    my @a;
+    return @a if !$edb->{db} && $db_only;
     return $edb->SUPER::values_of_block($block) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
@@ -223,7 +224,7 @@ sub values_of_block {
     # pass it on to Evented::Configuration.
     return $edb->SUPER::values_of_block($block) unless $db_only;
     
-    return my @a;
+    return @a;
 }
 
 # get a configuration value.
@@ -281,6 +282,24 @@ sub create_tables_maybe {
     )') if !($edb->{db}->do('SELECT valueid FROM dvalues LIMIT 1') + 0);
         
     return 1;
+}
+
+# set a value.
+# accepts block type or [block type, block name] as well.
+# Example: $edb->set(['cookies', 'chocolate'], mykey => $value)
+sub store {
+    my ($edb, $block, $key, $value) = @_;
+    my ($block_type, $block_name) = ('section', $block);
+    return unless $edb->{db};
+   
+    # if $block is an array reference, it's (type, name).
+    if (defined ref $block && ref $block eq 'ARRAY') {
+        ($block_type, $block_name) = @$block;
+    }
+    
+    # TODO: finish this.
+    # by the way, store anything here in cache.
+    
 }
 
 ##########################
