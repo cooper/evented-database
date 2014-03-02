@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Mitchell Cooper
+# Copyright (c) 2012-14, Mitchell Cooper
 package Evented::Database;
 
 use warnings;
@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.5';
+our $VERSION = '0.6';
 
 # Caching
 # -----------------------------
@@ -206,8 +206,7 @@ sub values_of_block {
     my ($block_type, $block_name) = ('section', $block);
     
     # no database.
-    my @a;
-    return @a if !$edb->{db} && $db_only;
+    return () if !$edb->{db} && $db_only;
     return $edb->SUPER::values_of_block($block) if !$edb->{db};
     
     # if $block is an array reference, it's (type, name).
@@ -224,7 +223,7 @@ sub values_of_block {
     # pass it on to Evented::Configuration.
     return $edb->SUPER::values_of_block($block) unless $db_only;
     
-    return @a;
+    return ();
 }
 
 # get a configuration value.
@@ -265,22 +264,27 @@ sub create_tables_maybe {
     
     # no database.
     return unless $edb->{db};
-    
+        
     # create locations table.
+    $edb->{db}{RaiseError} = 1;
+    my $exists = eval { $edb->{db}->do('SELECT block FROM locations LIMIT 1'); 1 };
     $edb->{db}->do('CREATE TABLE locations (
         block       VARCHAR(300),
         blockname   VARCHAR(300),
         dkey        VARCHAR(300),
         valueid     INT
-    )') if !($edb->{db}->do('SELECT block FROM locations LIMIT 1') + 0);
+    )') if !$exists;
    
     # create dvalues table.
+    $edb->{db}{RaiseError} = 1;
+    $exists = eval { $edb->{db}->do('SELECT valueid FROM dvalues LIMIT 1'); 1 };
     $edb->{db}->do('CREATE TABLE dvalues (
         valueid     INT,
         valuetype   VARCHAR(255),
         value       TEXT
-    )') if !($edb->{db}->do('SELECT valueid FROM dvalues LIMIT 1') + 0);
+    )') if !$exists;
         
+    $edb->{db}{RaiseError} = undef[!;
     return 1;
 }
 
@@ -405,7 +409,7 @@ sub _db_get_value {
     
     # find the value. there should really only be one.
     while (my $aryref = $sth->fetchrow_arrayref) {
-        return my @a = ($aryref->[0], $aryref->[1]);
+        return ($aryref->[0], $aryref->[1]);
     }
     
     # nothing was found.
