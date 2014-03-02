@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.8';
+our $VERSION = '0.9';
 
 # Caching
 # -----------------------------
@@ -424,6 +424,7 @@ sub _db_convert_value {
     my ($edb, $value_string, $value_type) = @_;
     return unless defined $value_string;
     given ($value_type) {
+    print "CONVERT: @_\n";
     
     # strings are wrapped by double quotes, escaping them if necessary.
     when ('string') {
@@ -499,7 +500,8 @@ sub _db_convert_value {
     # FIXME: this is very bad. it needs to interpret escapes in case there are
     # commas or colons in the hash key.
     when ('hash') {
-    
+        print "HASH w/ string: $value_string\n";
+        
         my %final;
         
         # if this is an empty hash, we should not waste our time parsing it.
@@ -543,7 +545,7 @@ sub _db_convert_value {
 # returns the next available ID.
 sub _db_next_id {
     my $edb = shift;
-    my $sth = $edb->{db}->prepare('SELECT MAX(valueid) FROM locations');
+    my $sth = $edb->{db}->prepare('SELECT MAX(valueid) FROM dvalues');
     $sth->execute;
     return $sth->fetch->[0] + 1;
 }
@@ -552,7 +554,7 @@ sub _db_next_id {
 # if block information is provided, also inserts that in the location table.
 sub _db_store_value {
     my ($edb, $valueid, $block_type, $block_name, $block_key, $key, $value) = @_;
-
+    print "STORE: @_\n";
     # get next value id.
     $valueid ||= $edb->_db_next_id;
     
@@ -622,6 +624,31 @@ sub _db_store_value {
         # add the array itself.
         my $array_value = join ',', @ids;
         $insert->('array', $array_value, $value);
+
+    }
+    
+    # array.
+    if (ref $value eq 'HASH') {
+        
+        # add each item separately.
+        my ($i, %ids) = 0;
+        foreach my $_key (keys %$value) {
+            my $item = $value->{$_key};
+            
+            # determine the ID.
+            my $id = $valueid + ++$i;
+            $ids{$_key} = $id;
+        
+            # insert the value
+            $edb->_db_store_value($id, undef, undef, undef, undef, $item);
+        
+        }
+        
+        # add the hash itself.
+        my $hash_value = join ',', map { $_.q(:).$ids{$_} } keys %ids;
+        print "value: $hash_value\n";
+        print "id for hash: $valueid\n";
+        $insert->('hash', $hash_value, $value);
 
     }
     
