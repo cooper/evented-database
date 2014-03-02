@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.7';
+our $VERSION = '0.8';
 
 # Caching
 # -----------------------------
@@ -304,60 +304,8 @@ sub store {
     my $block_key = $block_type.q(:).$block_name;
     
     # TODO: if it already exists, overwrite.
-    
-    # get next value id.
-    my $valueid = $edb->_db_next_id;
-    
-    my $insert = sub {
-        my ($type, $value) = @_;
-        
-        # insert the value.
-        my $sth1 = $edb->{db}->prepare(
-            'INSERT INTO dvalues (valueid, valuetype, value) ' .
-            'VALUES (?, ?, ?)'
-        );
-        $sth1->execute($valueid, $type, $value); # TODO: err handle
-        
-        # insert the location.
-        my $sth2 = $edb->{db}->prepare(
-            'INSERT INTO locations (block, blockname, dkey, valueid) ' .
-            'VALUES (?, ?, ?, ?)'
-        );
-        $sth2->execute($block_type, $block_name, $key, $valueid);
 
-    };
-    
-    # string or number.
-    if (!ref $value) {
-    
-        # it's a number.
-        if (looks_like_number($value)) {
-        
-            # force numeric interpretation.
-            $value += 0;
-            
-            # insert.
-            $insert->('number', $value);
-            $edb->{cache}{$block_key}{$key} = $value;
-            
-            return 1;
-        }
-        
-        # it's a string.
-        my $string_value = $value;
-        $string_value =~ s/"/\\"/g;
-        $string_value = qq("$string_value");
-        
-        # insert.
-        $insert->('string', $string_value);
-        $edb->{cache}{$block_key}{$key} = $value;
-        
-        return 1;
-    }
-    
-    # TODO: finish this.
-    # by the way, store anything here in cache.
-    
+    return $edb->_db_store_value(undef, $block_type, $block_name, $block_key, $key, $value);
 }
 
 ##########################
@@ -463,7 +411,7 @@ sub _db_get_value {
     
     # find the value. there should really only be one.
     while (my $aryref = $sth->fetchrow_arrayref) {
-        return ($aryref->[0], $aryref->[1]);
+        return wantarray ? ($aryref->[0], $aryref->[1]) : $aryref->[0];
     }
     
     # nothing was found.
@@ -532,7 +480,7 @@ sub _db_convert_value {
                 return $edb->error("syntax error in value ID '$id'");
             }
         
-            my $val = $edb->_db_get_value($id);
+            my $val = $edb->_db_convert_value($edb->_db_get_value($id));
             
             # if it wasn't set, there was an error.
             if (!$val) {
@@ -548,6 +496,8 @@ sub _db_convert_value {
     }
     
     # hashes are stored as comma-separated pairs of key:value_identifier.
+    # FIXME: this is very bad. it needs to interpret escapes in case there are
+    # commas or colons in the hash key.
     when ('hash') {
     
         my %final;
@@ -571,7 +521,7 @@ sub _db_convert_value {
                 return $edb->error("syntax error in hash pair '$pair'");
             }
             
-            my $val = $edb->_db_get_value($value_id);
+            my $val = $edb->_db_convert_value($edb->_db_get_value($value_id));
             
             # if it wasn't set, there was an error.
             if (!$val) {
@@ -590,11 +540,91 @@ sub _db_convert_value {
     return;
 }
 
+# returns the next available ID.
 sub _db_next_id {
     my $edb = shift;
     my $sth = $edb->{db}->prepare('SELECT MAX(valueid) FROM locations');
     $sth->execute;
     return $sth->fetch->[0] + 1;
+}
+
+# store a value in the dvalues table.
+# if block information is provided, also inserts that in the location table.
+sub _db_store_value {
+    my ($edb, $valueid, $block_type, $block_name, $block_key, $key, $value) = @_;
+
+    # get next value id.
+    $valueid ||= $edb->_db_next_id;
+    
+    my $insert = sub {
+        my ($type, $value, $real_value) = @_;
+        
+        # insert the value.
+        my $sth1 = $edb->{db}->prepare(
+            'INSERT INTO dvalues (valueid, valuetype, value) ' .
+            'VALUES (?, ?, ?)'
+        );
+        $sth1->execute($valueid, $type, $value); # TODO: err handle
+        
+        # insert the location if necessary.
+        if (defined $block_key && defined $key) {
+            my $sth2 = $edb->{db}->prepare(
+                'INSERT INTO locations (block, blockname, dkey, valueid) ' .
+                'VALUES (?, ?, ?, ?)'
+            );
+            $sth2->execute($block_type, $block_name, $key, $valueid);
+            $edb->{cache}{$block_key}{$key} = $real_value;
+        }
+
+    };
+    
+    # string or number.
+    if (!ref $value) {
+    
+        # it's a number.
+        if (looks_like_number($value)) {
+        
+            # force numeric interpretation.
+            $value += 0;
+            
+            # insert.
+            $insert->('number', $value, $value);
+            
+            return 1;
+        }
+        
+        # it's a string.
+        my $string_value = $value;
+        $string_value =~ s/"/\\"/g;
+        $string_value = qq("$string_value");
+        
+        # insert.
+        $insert->('string', $string_value, $value);
+        
+        return 1;
+    }
+    
+    # array.
+    if (ref $value eq 'ARRAY') {
+        
+        # add each item separately.
+        my ($i, @ids) = 0;
+        foreach my $item (@$value) {
+        
+            # determine the ID.
+            push @ids, my $id = $valueid + ++$i;
+        
+            # insert the value.
+            $edb->_db_store_value($id, undef, undef, undef, undef, $item);
+        
+        }
+        
+        # add the array itself.
+        my $array_value = join ',', @ids;
+        $insert->('array', $array_value, $value);
+
+    }
+    
 }
 
 #####################
