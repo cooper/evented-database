@@ -11,7 +11,7 @@ use Evented::Configuration;
 
 use Scalar::Util qw(blessed looks_like_number);
 
-our $VERSION = '0.6';
+our $VERSION = '0.7';
 
 # Caching
 # -----------------------------
@@ -284,13 +284,13 @@ sub create_tables_maybe {
         value       TEXT
     )') if !$exists;
         
-    $edb->{db}{RaiseError} = undef[!;
+    $edb->{db}{RaiseError} = undef;
     return 1;
 }
 
 # set a value.
 # accepts block type or [block type, block name] as well.
-# Example: $edb->set(['cookies', 'chocolate'], mykey => $value)
+# Example: $edb->store(['cookies', 'chocolate'], mykey => $value)
 sub store {
     my ($edb, $block, $key, $value) = @_;
     my ($block_type, $block_name) = ('section', $block);
@@ -299,6 +299,60 @@ sub store {
     # if $block is an array reference, it's (type, name).
     if (defined ref $block && ref $block eq 'ARRAY') {
         ($block_type, $block_name) = @$block;
+    }
+    
+    my $block_key = $block_type.q(:).$block_name;
+    
+    # TODO: if it already exists, overwrite.
+    
+    # get next value id.
+    my $valueid = $edb->_db_next_id;
+    
+    my $insert = sub {
+        my ($type, $value) = @_;
+        
+        # insert the value.
+        my $sth1 = $edb->{db}->prepare(
+            'INSERT INTO dvalues (valueid, valuetype, value) ' .
+            'VALUES (?, ?, ?)'
+        );
+        $sth1->execute($valueid, $type, $value); # TODO: err handle
+        
+        # insert the location.
+        my $sth2 = $edb->{db}->prepare(
+            'INSERT INTO locations (block, blockname, dkey, valueid) ' .
+            'VALUES (?, ?, ?, ?)'
+        );
+        $sth2->execute($block_type, $block_name, $key, $valueid);
+
+    };
+    
+    # string or number.
+    if (!ref $value) {
+    
+        # it's a number.
+        if (looks_like_number($value)) {
+        
+            # force numeric interpretation.
+            $value += 0;
+            
+            # insert.
+            $insert->('number', $value);
+            $edb->{cache}{$block_key}{$key} = $value;
+            
+            return 1;
+        }
+        
+        # it's a string.
+        my $string_value = $value;
+        $string_value =~ s/"/\\"/g;
+        $string_value = qq("$string_value");
+        
+        # insert.
+        $insert->('string', $string_value);
+        $edb->{cache}{$block_key}{$key} = $value;
+        
+        return 1;
     }
     
     # TODO: finish this.
@@ -436,7 +490,7 @@ sub _db_convert_value {
         # escapes are currently pointless, but they will be needed eventually when
         # an improved parser is introduced to Evented::Database.
         my $inner_string = $1;
-        $inner_string =~ s/(\\"|\\\\)//g;
+        $inner_string =~ s/\\(")|\\(\\)/$1/g;
         
         # simple as that; return the string.
         return $inner_string;
@@ -453,7 +507,7 @@ sub _db_convert_value {
         }
         
         # it is, so return it.
-        return $value_string;
+        return $value_string + 0;
         
     }
     
@@ -534,6 +588,13 @@ sub _db_convert_value {
     
     }
     return;
+}
+
+sub _db_next_id {
+    my $edb = shift;
+    my $sth = $edb->{db}->prepare('SELECT MAX(valueid) FROM locations');
+    $sth->execute;
+    return $sth->fetch->[0] + 1;
 }
 
 #####################
