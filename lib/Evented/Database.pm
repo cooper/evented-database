@@ -10,11 +10,12 @@ use parent 'Evented::Configuration';
 use Evented::Configuration;
 use Scalar::Util qw(blessed looks_like_number);
 use JSON::XS ();
+use DBI qw(SQL_BLOB SQL_INTEGER SQL_FLOAT SQL_VARCHAR);
 
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -163,11 +164,6 @@ sub create_tables_maybe {
 ### MISCELLANEOUS ###
 #####################
 
-sub _block {
-    my $block = shift;
-    return (ref $block && ref $block eq 'ARRAY' ? @$block : ('section', $block));
-}
-
 # errors.
 sub error {
     my ($db, $reason) = @_;
@@ -214,6 +210,14 @@ sub _args {
     return @a;
 }
 
-package Evented::Database::DataType;
+sub _block {
+    my $block = shift;
+    return (ref $block && ref $block eq 'ARRAY' ? @$block : ('section', $block));
+}
+
+sub EDB_STRING  { bless [SQL_VARCHAR, shift], 'Evented::Database::DataType' }
+sub EDB_INTEGER { bless [SQL_INTEGER, shift], 'Evented::Database::DataType' }
+sub EDB_FLOAT   { bless [SQL_FLOAT,   shift], 'Evented::Database::DataType' }
+sub EDB_BLOB    { bless [SQL_BLOB,    shift], 'Evented::Database::DataType' }
 
 1

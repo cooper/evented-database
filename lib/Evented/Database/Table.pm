@@ -15,6 +15,7 @@ sub create_or_alter {
 }
 
 sub create {
+    # must use an array to preserve the order.
     my ($table, $db, $dbh, @cols_types) = &_args;
     my $query = "CREATE TABLE `$$table{name}` (";
     my $i = 0;
@@ -27,8 +28,46 @@ sub create {
     $dbh->do($query);
 }
 
+# update table layout only if it has changed.
 sub alter {
-    # TODO.
+    my ($table, $db, $dbh, @cols_types) = &_args;
+    
+    # figure the new columns.
+    my (@n_columns, %n_columns);
+    while (my ($col, $type) = splice @cols_types, 0, 2) {
+        push @n_columns, "`$col` $type";
+        $n_columns{$col} = $type;
+    }
+    my $new_columns = join '|', @n_columns;
+    
+    # figure the old columns.
+    my $sth = $dbh->prepare("PRAGMA table_info('$$table{name}')");
+    $sth->execute;
+    my (@o_columns, %o_columns);
+    while (my $col = $sth->fetchrow_hashref) {
+        $o_columns[ $col->{cid} ] = "`$$col{name}` $$col{type}";
+        $o_columns{ $col->{name} } = $col->{type};
+    }
+    my $old_columns = join '|', @o_columns;
+    
+    # the table has not changed.
+    return 1 if $new_columns eq $old_columns;
+    
+    my $old = $table->{name};
+    my $new = "edb_new_$$table{name}";
+    
+    # create the new table.
+    $db->table($new)->create(@cols_types);
+    
+    # insert the old values for columns that still exist.
+    my @insert = grep { exists $n_columns{$_} } keys %o_columns;
+    my $insert = join ', ', map { "`$_`" } @insert;
+    my $query  = "INSERT INTO `$new` ($insert) SELECT $insert FROM `$old`";
+    
+    # commit these changes.
+    $dbh->do($query) and
+    $dbh->do("ALTER TABLE `$new` RENAME TO `$old`");
+    
 }
 
 sub exists : method {
