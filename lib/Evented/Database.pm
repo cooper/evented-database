@@ -15,7 +15,7 @@ use DBI qw(SQL_BLOB SQL_INTEGER SQL_FLOAT SQL_VARCHAR);
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################

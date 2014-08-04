@@ -65,7 +65,8 @@ sub alter {
     my $query  = "INSERT INTO `$new` ($insert) SELECT $insert FROM `$old`";
     
     # commit these changes.
-    $dbh->do($query) and
+    $dbh->do($query)                and
+    $dbh->do("DROP TABLE `$old`")   and
     $dbh->do("ALTER TABLE `$new` RENAME TO `$old`");
     
 }
