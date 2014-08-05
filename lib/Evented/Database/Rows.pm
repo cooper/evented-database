@@ -7,6 +7,8 @@ use 5.010;
 use utf8;
 use parent 'Evented::Object';
 
+our $VERSION = '1.04';
+
 sub insert_or_update {
     # match the rows if they exist, update only the things that exists()
     # insert row with all the values if not exists

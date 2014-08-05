@@ -7,6 +7,8 @@ use 5.010;
 use utf8;
 use parent 'Evented::Object';
 
+our $VERSION = '1.04';
+
 sub create_or_alter {
     # create table if not exists
     # add missing columns
