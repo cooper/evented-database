@@ -15,7 +15,7 @@ use DBI qw(SQL_BLOB SQL_INTEGER SQL_FLOAT SQL_VARCHAR);
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.03';
+our $VERSION = '1.04';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -274,6 +274,14 @@ sub encode {
     my $value = shift;
     return $value unless defined $value;
     return $json->encode($value);
+}
+
+sub import {
+    my $this_package = shift;
+    my $package = caller;
+    no strict 'refs';
+    *{$package.'::'.$_} = *{$this_package.'::'.$_}
+    foreach grep { substr($_, 0, 4) eq 'EDB_' } @_;
 }
 
 sub EDB_STRING  { bless [SQL_VARCHAR, shift], 'Evented::Database::DataType' }
