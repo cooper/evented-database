@@ -6,8 +6,9 @@ use strict;
 use 5.010;
 use utf8;
 use parent 'Evented::Object';
+use Evented::Database 'edb_bind';
 
-our $VERSION = '1.04';
+our $VERSION = '1.05';
 
 sub create_or_alter {
     # create table if not exists
@@ -104,7 +105,7 @@ sub insert {
     }
     my $query = "INSERT INTO `$$table{name}` ($type_str) VALUES($value_str)";
     my $sth   = $dbh->prepare($query);
-    Evented::Database::_bind($sth, @values);
+    edb_bind($sth, @values);
     $sth->execute;
 }
 

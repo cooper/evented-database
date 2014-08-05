@@ -12,10 +12,18 @@ use Scalar::Util qw(blessed looks_like_number);
 use JSON::XS ();
 use DBI qw(SQL_BLOB SQL_INTEGER SQL_FLOAT SQL_VARCHAR);
 
+sub import {
+    my $this_package = shift;
+    my $package = caller;
+    no strict 'refs';
+    *{$package.'::'.$_} = *{$this_package.'::'.$_}
+    foreach grep { uc substr($_, 0, 4) eq 'EDB_' } @_;
+}
+
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.04';
+our $VERSION = '1.05';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -76,8 +84,8 @@ sub keys_of_block {
 # if the same pair exists in both, the database overrides.
 sub values_of_block {
     my $db = shift;
-    # TODO: this might require more sophistication.
-    return;
+    my %hash = $db->hash_of_block(@_);
+    return values %hash;
 }
 
 # get a configuration or simple database value.
@@ -157,16 +165,6 @@ sub _keys_of_block {
     )->select('key');
 }
 
-# returns a list of all the values in a block.
-sub _values_of_block {
-    my ($db, $b_type, $b_name) = &_args;
-    my $value = $db->table('configuration')->rows(
-        blocktype => $b_type,
-        block     => $b_name
-    )->select('value');
-    return defined $value ? $json->decode($value) : $db->SUPER::values_of_block(@_);
-}
-
 ############################
 ## DATABASE-ONLY METHODS ###
 ############################
@@ -234,7 +232,7 @@ sub error {
     
 }
 
-sub _bind {
+sub edb_bind {
     my ($sth, @bind) = @_;
     return unless $sth;
     my $i = 1;
@@ -274,14 +272,6 @@ sub encode {
     my $value = shift;
     return $value unless defined $value;
     return $json->encode($value);
-}
-
-sub import {
-    my $this_package = shift;
-    my $package = caller;
-    no strict 'refs';
-    *{$package.'::'.$_} = *{$this_package.'::'.$_}
-    foreach grep { substr($_, 0, 4) eq 'EDB_' } @_;
 }
 
 sub EDB_STRING  { bless [SQL_VARCHAR, shift], 'Evented::Database::DataType' }

@@ -6,8 +6,9 @@ use strict;
 use 5.010;
 use utf8;
 use parent 'Evented::Object';
+use Evented::Database 'edb_bind';
 
-our $VERSION = '1.04';
+our $VERSION = '1.05';
 
 sub insert_or_update {
     # match the rows if they exist, update only the things that exists()
@@ -27,20 +28,6 @@ sub insert_or_update {
 sub select : method { _select(0, @_) }
 sub select_hash     { _select(1, @_) }
 sub _select {
-    # if not wantarray, return the first row's match
-    # e.g. table('blah')->rows(haha => 1)->select('hi')
-    # two rows match:
-    #   if wantarray, return the 'hi' value for each row (@values)
-    #   otherwise,    return that value for the first match $values[0]
-    
-    # e.g. table('blah')->rows(haha => 1)->select('*')
-    # two rows match:
-    #   if wantarray, return a list of hashrefs of all key:value pairs
-    #   otherwise,    return a real hash of key:value pairs for first match
-    #
-    # I CHANGED MY MIND.
-    # THIS IS TOO CONFUSING.
-    # just have separate methods
     #
     # ->select           # returns a list of column values for ONE row
     #
@@ -55,9 +42,6 @@ sub _select {
     # ->select_hash      # returns a list of hash refs of key:value pairs for multiple rows
     # with ->rows        
     #
-    # I MADE ANOTHER DECISION to change
-    # ->rows and ->row both represented by same obj type (Rows)
-    # but it remembers ->{multiple} or something, changing the behavior of the returns
     my ($hash, $rows, $table, $db, $dbh, @columns) = (shift, &_args);
     @columns = '*' if !@columns;
     
@@ -71,7 +55,7 @@ sub _select {
     
     # do it.
     my $sth = $dbh->prepare($query) or die $dbh->errstr;
-    Evented::Database::_bind($sth, @c_bind);
+    edb_bind($sth, @c_bind);
     $sth->execute;
         
     my $all = $hash ? $sth->fetchall_arrayref({}) : $sth->fetchall_arrayref;
@@ -106,7 +90,7 @@ sub update {
         $i++;
     }
     my $sth = $dbh->prepare($query);
-    Evented::Database::_bind($sth, values %update);
+    edb_bind($sth, values %update);
     $sth->execute;
 }
 
@@ -133,7 +117,7 @@ sub clause {
         
         $i++;
     }
-    return ($clause, @values);
+    return wantarray ? ($clause, @values) : $clause;
 }
 
 # adds the table and database to argument list.
@@ -142,15 +126,36 @@ sub _args {
     return ($rows, $rows->{table}, $rows->{table}{db}, $rows->{table}{db}{db}, @_);
 }
 
+# number of matches.
 sub count {
     my ($rows, $table, $db, $dbh) = &_args;
     my ($clause, @c_bind) = $rows->clause;
     my $query = "SELECT COUNT(*) FROM `$$table{name}`";
     $query   .= " $clause" if $clause;
     my $sth   = $dbh->prepare($query);
-    Evented::Database::_bind($sth, @c_bind);
+    edb_bind($sth, @c_bind);
     $sth->execute;
     return ($sth->fetchrow_array)[0];
+}
+
+# delete row(s).
+sub delete : method {
+    my ($rows, $table, $db, $dbh) = &_args;
+    my $query = "DELETE FROM `$$table{name}`";
+    my ($clause, @c_bind) = $rows->clause;
+    $query .= " $clause" if $clause;
+    
+    #$query .= " LIMIT 1" if $rows->{single};
+    # apparently SQLite is not compiled with DELETE..LIMIT support by default.
+    my $sth = $dbh->prepare($query);
+    edb_bind($sth, @c_bind);
+    $sth->execute;
+}
+
+# insert row.
+sub insert {
+    my ($rows, $table, $db, $dbh) = &_args;
+    $table->insert(%{ $rows->{match} || {} });
 }
 
 1
