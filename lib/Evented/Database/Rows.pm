@@ -8,7 +8,7 @@ use utf8;
 use parent 'Evented::Object';
 use Evented::Database 'edb_bind';
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 
 sub insert_or_update {
     # match the rows if they exist, update only the things that exists()

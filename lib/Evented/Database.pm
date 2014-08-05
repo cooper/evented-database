@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -180,7 +180,7 @@ sub store {
         blocktype => $b_type,
         block     => $b_name,
         key       => $key
-    )->insert_or_update(value => encode($value));
+    )->insert_or_update(value => edb_encode($value));
 }
 
 # return a table object.
@@ -199,7 +199,7 @@ sub write_conf_to_db {
             blocktype => $b_type,
             block     => $b_name,
             key       => $key
-        )->insert_or_update(value => encode($value));
+        )->insert_or_update(value => edb_encode($value));
     }}}
 }
 
@@ -208,6 +208,11 @@ sub create_tables_maybe {
     $db->table('configuration')->create_or_alter(
         blocktype => 'TEXT',
         block     => 'TEXT',
+        key       => 'TEXT',
+        value     => 'TEXT'
+    );
+    $db->table('edb_table_metadata')->create_or_alter(
+        table     => 'TEXT',
         key       => 'TEXT',
         value     => 'TEXT'
     );
@@ -268,7 +273,7 @@ sub _block {
     return (ref $block && ref $block eq 'ARRAY' ? @$block : ('section', $block));
 }
 
-sub encode {
+sub edb_encode {
     my $value = shift;
     return $value unless defined $value;
     return $json->encode($value);

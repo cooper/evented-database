@@ -6,9 +6,9 @@ use strict;
 use 5.010;
 use utf8;
 use parent 'Evented::Object';
-use Evented::Database 'edb_bind';
+use Evented::Database qw(edb_bind edb_encode);
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 
 sub create_or_alter {
     # create table if not exists
@@ -122,6 +122,26 @@ sub rows {
         table => $table,
         match => \%match
     );
+}
+
+# fetch table metadata.
+sub meta {
+    my ($table, $db, $dbh, $key) = &_args;
+    my $value = $db->table('edb_table_metadata')->row(
+        table => $table->{name},
+        key   => $key
+    )->select('value');
+    return $value unless $value;
+    return $Evented::Database::json->decode($value);
+}
+
+# set table metadata.
+sub set_meta {
+    my ($table, $db, $dbh, $key, $value) = &_args;
+    $db->table('edb_table_metadata')->row(
+        table => $table->{name},
+        key   => $key
+    )->insert_or_update(value => edb_encode($value));
 }
 
 # adds the database to argument list.
