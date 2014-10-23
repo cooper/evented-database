@@ -8,7 +8,7 @@ use utf8;
 use parent 'Evented::Object';
 use Evented::Database qw(edb_bind edb_encode);
 
-our $VERSION = '1.06';
+our $VERSION = '1.07';
 
 sub create_or_alter {
     # create table if not exists
@@ -28,7 +28,11 @@ sub create {
         $i++;
     }
     $query .= ')';
-    $dbh->do($query);
+    my $res = $dbh->do($query);
+    if (!defined $res) {
+        warn "Error in create [$query]: ", $dbh->errstr;
+    }
+    return $res;
 }
 
 # update table layout only if it has changed.
