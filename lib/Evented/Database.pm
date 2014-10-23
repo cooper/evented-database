@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.08';
+our $VERSION = '1.09';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################

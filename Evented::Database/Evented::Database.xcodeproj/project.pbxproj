@@ -32,7 +32,7 @@
 		BC9519031975923A007928CE /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0600;
+				LastUpgradeCheck = 0610;
 			};
 			buildConfigurationList = BC9519061975923A007928CE /* Build configuration list for PBXProject "Evented::Database" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -53,6 +53,7 @@
 		BC9519071975923A007928CE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
 		};
