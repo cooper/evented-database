@@ -8,7 +8,7 @@ use utf8;
 use parent 'Evented::Object';
 use Evented::Database qw(edb_bind edb_encode);
 
-our $VERSION = '1.07';
+our $VERSION = '1.08';
 
 sub create_or_alter {
     # create table if not exists
@@ -69,6 +69,13 @@ sub alter {
     # insert the old values for columns that still exist.
     my @insert = grep { exists $n_columns{$_} } keys %o_columns;
     my $insert = join ', ', map { "`$_`" } @insert;
+
+    # nothing to insert?
+    if (!length $insert) {
+        warn "Altering table with nothing to insert? ($old_columns)->($new_columns)\n";
+        return;
+    }
+    
     my $query  = "INSERT INTO `$new` ($insert) SELECT $insert FROM `$old`";
     
     # commit these changes.
