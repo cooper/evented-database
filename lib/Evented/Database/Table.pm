@@ -8,7 +8,7 @@ use utf8;
 use parent 'Evented::Object';
 use Evented::Database qw(edb_bind edb_encode);
 
-our $VERSION = '1.09';
+our $VERSION = '1.1';
 
 sub create_or_alter {
     # create table if not exists
@@ -20,13 +20,13 @@ sub create_or_alter {
 sub create {
     # must use an array to preserve the order.
     my ($table, $db, $dbh, @cols_types) = &_args;
-    
+
     # trying to create a table with no columns?
     if (!@cols_types) {
         warn 'Attempting to create table ', $table->{name}, 'with no columns';
         return;
     }
-    
+
     my $query = "CREATE TABLE `$$table{name}` (";
     my $i = 0;
     while (my ($col, $type) = splice @cols_types, 0, 2) {
@@ -35,13 +35,13 @@ sub create {
         $i++;
     }
     $query .= ')';
-    
+
     # something went wrong?
     my $res = $dbh->do($query);
     if (!defined $res) {
         warn "Error in create [$query]: ", $dbh->errstr;
     }
-    
+
     return $res;
 }
 
@@ -49,7 +49,7 @@ sub create {
 sub alter {
     my ($table, $db, $dbh, @cols_types) = &_args;
     my @desired_cols_types = @cols_types;
-    
+
     # figure the new columns.
     my (@n_columns, %n_columns);
     while (my ($col, $type) = splice @cols_types, 0, 2) {
@@ -57,7 +57,7 @@ sub alter {
         $n_columns{$col} = $type;
     }
     my $new_columns = join '|', @n_columns;
-    
+
     # figure the old columns.
     my $sth = $dbh->prepare("PRAGMA table_info('$$table{name}')");
     $sth->execute;
@@ -67,16 +67,16 @@ sub alter {
         $o_columns{ $col->{name} } = $col->{type};
     }
     my $old_columns = join '|', @o_columns;
-    
+
     # the table has not changed.
     return 1 if $new_columns eq $old_columns;
-    
+
     my $old = $table->{name};
     my $new = "edb_new_$$table{name}";
-    
+
     # create the new table.
     $db->table($new)->create(@desired_cols_types);
-    
+
     # insert the old values for columns that still exist.
     my @insert = grep { exists $n_columns{$_} } keys %o_columns;
     my $insert = join ', ', map { "`$_`" } @insert;
@@ -86,14 +86,14 @@ sub alter {
         warn "Altering table with nothing to insert? ($old_columns)->($new_columns)\n";
         return;
     }
-    
+
     my $query  = "INSERT INTO `$new` ($insert) SELECT $insert FROM `$old`";
-    
+
     # commit these changes.
     $dbh->do($query)                and
     $dbh->do("DROP TABLE `$old`")   and
     $dbh->do("ALTER TABLE `$new` RENAME TO `$old`");
-    
+
 }
 
 sub exists : method {

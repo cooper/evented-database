@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.09';
+our $VERSION = '1.1';
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -33,16 +33,16 @@ our $json    = JSON::XS->new->allow_nonref(1);
 # create a new database instance.
 sub new {
     my ($class, %opts) = @_;
-    
+
     # ensure that the database object is DBI-compatible.
     if (defined $opts{db} and !blessed($opts{db}) || !$opts{db}->isa('DBI::db')) {
         $@ = 'specified \'db\' option is not a valid DBI database.';
         return;
     }
-    
+
     # create the object.
     my $db = $class->SUPER::new(%opts);
-    
+
     return $db;
 }
 
@@ -98,12 +98,12 @@ sub get {
         block     => $b_name,
         key       => $key
     );
-        
+
     # no match; forward.
     # we check count here in case the value is undef or NULL
     # in the database (in which case it should still override).
     return $db->SUPER::get(@at_underscore) unless $row->count;
-    
+
     my $value = $row->select('value');
     return $value unless length $value;
     return $json->decode($value);
@@ -225,7 +225,7 @@ sub create_tables_maybe {
 # errors.
 sub error {
     my ($db, $reason) = @_;
-    
+
     # if $reason is set, we're returning undefined and setting the error.
     if (defined $reason) {
         $db->{EDB_ERROR} = $reason;
@@ -234,7 +234,7 @@ sub error {
 
     # otherwise, we're returning the last error set.
     return $db->{EDB_ERROR};
-    
+
 }
 
 sub edb_bind {
@@ -243,13 +243,13 @@ sub edb_bind {
     my $i = 1;
     foreach my $bind (@bind) {
         my @args = $i;
-        
+
         # data type specified.
         if (blessed $bind && $bind->isa('Evented::Database::DataType')) {
             push @args, $bind->[1];
             push @args, $bind->[0];
         }
-        
+
         # no type specified.
         else {
             push @args, $bind;
@@ -258,7 +258,7 @@ sub edb_bind {
         $sth->bind_param(@args);
         $i++;
     }
-    
+
     return $sth;
 }
 
