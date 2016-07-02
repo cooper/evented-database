@@ -8,7 +8,7 @@ use utf8;
 use parent 'Evented::Object';
 use Evented::Database qw(edb_bind edb_encode);
 
-our $VERSION = '1.1';
+our $VERSION = '1.11';
 
 sub create_or_alter {
     # create table if not exists

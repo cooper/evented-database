@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.1';
+our $VERSION = '1.11';      # now incrementing by 0.01
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -46,10 +46,17 @@ sub new {
     return $db;
 }
 
-# returns true if either have the block.
+# returns true if the block is found.
+#
+# e.g.  ->has_block('namelessblock')
+#       ->has_block(['named', 'block'])
+#
 sub has_block {
-    my $db = shift;
-    $db->_has_block(@_) || $db->SUPER::has_block(@_);
+    my ($db, $b_type, $b_name) = &_args;
+    return $db->table('configuration')->rows(
+        blocktype => $b_type,
+        block     => $b_name
+    )->count || $db->SUPER::has_block([ $b_type, $b_name ]);
 }
 
 # returns a simplified combination of block names (no duplicates).
@@ -115,19 +122,6 @@ sub get {
 
 # sub parse_config()
 # perhaps we should clear the cache here for the desired rehasing effect.
-
-# returns true if the block is found.
-#
-# e.g.  ->has_block('namelessblock')
-#       ->has_block(['named', 'block'])
-#
-sub _has_block {
-    my ($db, $b_type, $b_name) = &_args;
-    return $db->table('configuration')->rows(
-        blocktype => $b_type,
-        block     => $b_name
-    )->count || $db->SUPER::has_block(@_);
-}
 
 # returns a list of all the names of a block type.
 #
