@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.11';      # now incrementing by 0.01
+our $VERSION = '1.12';      # now incrementing by 0.01
 our $json    = JSON::XS->new->allow_nonref(1);
 
 ###############################
@@ -170,11 +170,19 @@ sub _keys_of_block {
 #
 sub store {
     my ($db, $b_type, $b_name, $key, $value) = &_args;
-    $db->table('configuration')->row(
+
+    # update it.
+    my $res = $db->table('configuration')->row(
         blocktype => $b_type,
         block     => $b_name,
         key       => $key
     )->insert_or_update(value => edb_encode($value));
+
+    # fire events.
+    my $old = $db->get([ $b_type, $b_name ], $key);
+    $db->_fire_events($b_type, $b_name, $key, $old, $value);
+
+    return $res;
 }
 
 # return a table object.
@@ -189,11 +197,7 @@ sub write_conf_to_db {
     foreach my $b_name (keys %{ $db->{conf}{$b_type}            }) {
     foreach my $key    (keys %{ $db->{conf}{$b_type}{$b_name}   }) {
         my $value = $db->{conf}{$b_type}{$b_name}{$key};
-        $db->table('configuration')->row(
-            blocktype => $b_type,
-            block     => $b_name,
-            key       => $key
-        )->insert_or_update(value => edb_encode($value));
+        $db->store([ $b_type, $b_name ], $key => $value);
     }}}
 }
 
