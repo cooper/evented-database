@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.13';      # now incrementing by 0.01
+our $VERSION = '1.14';      # now incrementing by 0.01
 our $json    = JSON::XS->new->allow_nonref(1);
 
 sub on  ();
@@ -279,7 +279,7 @@ sub edb_encode {
 
     # convert E::C booleans to JSON::XS
     if (blessed $value && $value->isa('Evented::Configuration::Boolean')) {
-        $value = $$value ? $JSON::XS::true : $JSON::XS::false;
+        $value = $$value ? \1 : \0;
     }
 
     # try to encode

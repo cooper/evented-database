@@ -9,7 +9,7 @@ use parent 'Evented::Object';
 use Evented::Database qw(edb_bind edb_encode edb_decode);
 use Carp qw(carp);
 
-our $VERSION = '1.13';
+our $VERSION = '1.14';
 
 sub create_or_alter {
     # create table if not exists
