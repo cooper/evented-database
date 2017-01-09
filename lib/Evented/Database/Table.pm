@@ -6,15 +6,18 @@ use strict;
 use 5.010;
 use utf8;
 use parent 'Evented::Object';
-use Evented::Database qw(edb_bind edb_encode);
+use Evented::Database qw(edb_bind edb_encode edb_decode);
+use Carp qw(carp);
 
-our $VERSION = '1.12';
+our $VERSION = '1.13';
 
 sub create_or_alter {
     # create table if not exists
     # add missing columns
     my ($table, @cols_types) = @_;
-    return $table->exists ? $table->alter(@cols_types) : $table->create(@cols_types);
+    return $table->exists           ?
+        $table->alter(@cols_types)  :
+        $table->create(@cols_types);
 }
 
 sub create {
@@ -23,7 +26,7 @@ sub create {
 
     # trying to create a table with no columns?
     if (!@cols_types) {
-        warn 'Attempting to create table ', $table->{name}, 'with no columns';
+        carp 'Attempting to create table ', $table->{name}, 'with no columns';
         return;
     }
 
@@ -39,7 +42,7 @@ sub create {
     # something went wrong?
     my $res = $dbh->do($query);
     if (!defined $res) {
-        warn "Error in create [$query]: ", $dbh->errstr;
+        carp "Error in create [$query]: ", $dbh->errstr;
     }
 
     return $res;
@@ -83,7 +86,7 @@ sub alter {
 
     # nothing to insert?
     if (!length $insert) {
-        warn "Altering table with nothing to insert? ($old_columns)->($new_columns)\n";
+        carp "Altering table with nothing to insert? ($old_columns)->($new_columns)\n";
         return;
     }
 
@@ -154,7 +157,7 @@ sub meta {
         key   => $key
     )->select('value');
     return $value unless $value;
-    return $Evented::Database::json->decode($value);
+    return edb_decode($value);
 }
 
 # set table metadata.

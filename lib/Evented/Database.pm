@@ -23,8 +23,13 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.12';      # now incrementing by 0.01
+our $VERSION = '1.13';      # now incrementing by 0.01
 our $json    = JSON::XS->new->allow_nonref(1);
+
+sub on  ();
+sub off ();
+*on  = *Evented::Configuration::on;
+*off = *Evented::Configuration::off;
 
 ###############################
 ### CONFIGURATION OVERRIDES ###
@@ -97,23 +102,21 @@ sub values_of_block {
 
 # get a configuration or simple database value.
 # this is a bit more sophisticated than the rest.
-sub get {
-    my @at_underscore = @_[1..$#_];
-    my ($db, $b_type, $b_name, $key) = &_args;
+sub  get { _get(shift, 0, @_) }
+sub _get {
+    my ($db, $bool_objs, $block, $key) = (shift, @_);
+    my ($b_type, $b_name) = _block($block);
     my $row = $db->table('configuration')->row(
         blocktype => $b_type,
         block     => $b_name,
         key       => $key
     );
 
-    # no match; forward.
-    # we check count here in case the value is undef or NULL
-    # in the database (in which case it should still override).
-    return $db->SUPER::get(@at_underscore) unless $row->count;
+    # no rows matched; forward on.
+    return $db->SUPER::_get(@_) unless $row->count;
 
     my $value = $row->select('value');
-    return $value unless length $value;
-    return $json->decode($value);
+    return edb_decode($value, $bool_objs);
 }
 
 ##################################################
@@ -143,7 +146,7 @@ sub _hash_of_block {
         blocktype => $b_type,
         block     => $b_name
     )->select_hash;
-    return map { $_->{key} => $json->decode($_->{value}) } @rows;
+    return map { $_->{key} => edb_decode($_->{value}) } @rows;
 }
 
 # returns a list of all the keys in a block.
@@ -170,6 +173,7 @@ sub _keys_of_block {
 #
 sub store {
     my ($db, $b_type, $b_name, $key, $value) = &_args;
+    my $old = $db->get([ $b_type, $b_name ], $key);
 
     # update it.
     my $res = $db->table('configuration')->row(
@@ -179,7 +183,6 @@ sub store {
     )->insert_or_update(value => edb_encode($value));
 
     # fire events.
-    my $old = $db->get([ $b_type, $b_name ], $key);
     $db->_fire_events($b_type, $b_name, $key, $old, $value);
 
     return $res;
@@ -273,8 +276,34 @@ sub _block {
 
 sub edb_encode {
     my $value = shift;
-    return $value unless defined $value;
-    return $json->encode($value);
+
+    # convert E::C booleans to JSON::XS
+    if (blessed $value && $value->isa('Evented::Configuration::Boolean')) {
+        $value = $$value ? $JSON::XS::true : $JSON::XS::false;
+    }
+
+    # try to encode
+    my $res = eval { $json->encode($value) };
+    $@ = "edb_encode($value) error: $@" if $@;
+
+    return $res;
+}
+
+sub edb_decode {
+    my ($value, $bool_objs) = @_;
+    return undef if !length $value;
+
+    # try to decode
+    my $res = eval { $value = $json->decode($value) };
+    $@ = "edb_decode($value) error: $@" if $@;
+
+    # convert JSON::XS booleans to Perl
+    if (blessed $res && $res->isa('JSON::XS::Boolean')) {
+        return $$res ? on : off     if $bool_objs;
+        return $$res ? 1  : undef;
+    }
+
+    return $res;
 }
 
 sub EDB_STRING  { bless [SQL_VARCHAR, shift], 'Evented::Database::DataType' }
