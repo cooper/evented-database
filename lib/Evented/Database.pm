@@ -23,7 +23,7 @@ sub import {
 use Evented::Database::Table;
 use Evented::Database::Rows;
 
-our $VERSION = '1.14';      # now incrementing by 0.01
+our $VERSION = '1.15';      # now incrementing by 0.01
 our $json    = JSON::XS->new->allow_nonref(1);
 
 sub on  ();
@@ -183,7 +183,8 @@ sub store {
     )->insert_or_update(value => edb_encode($value));
 
     # fire events.
-    $db->_fire_events($b_type, $b_name, $key, $old, $value);
+    my @events = $db->_get_events($b_type, $b_name, $key, $old, $value);
+    $db->fire_events_together(@events) if @events;
 
     return $res;
 }
